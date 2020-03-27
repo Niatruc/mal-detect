@@ -52,7 +52,7 @@ def data_generator(exe_samples_path, ground_truth, batch_size=64, max_len=2**20,
 		# print(file_paths)
 		yield (file_bytes_batch, ground_truth)
 
-def collect_exe_file_name_label(mal_exe_samples_path_arr, benign_exe_samples_path_arr, limit_cnt=(-1, -1)):
+def collect_exe_file_name_label(mal_exe_samples_path_arr, benign_exe_samples_path_arr, limit_cnt=(-1, -1), balanced=True):
 	def get_file_name_label_arr(path_arr, label, limit_cnt):
 		file_name_arr = []
 		for path in path_arr:
@@ -68,6 +68,13 @@ def collect_exe_file_name_label(mal_exe_samples_path_arr, benign_exe_samples_pat
 
 	mal_file_name_label_arr = get_file_name_label_arr(mal_exe_samples_path_arr, 1, limit_cnt[0])
 	benign_file_name_label_arr = get_file_name_label_arr(benign_exe_samples_path_arr, 0, limit_cnt[1])
+
+	# 需要两个类的样本数量一致
+	if balanced:
+		cnt = min(len(mal_file_name_label_arr), len(benign_file_name_label_arr))
+		mal_file_name_label_arr = mal_file_name_label_arr[0:cnt]
+		benign_file_name_label_arr = benign_file_name_label_arr[0:cnt]
+
 	return mal_file_name_label_arr, benign_file_name_label_arr
 
 def data_generator_2(mal_file_name_label_arr, benign_file_name_label_arr, batch_size=64, max_len=2**20, shuffle=True, balanced=False):
@@ -132,8 +139,8 @@ def predict_test_3(model, exe_samples_path, batch_size=64, max_len=2**20, ground
 	test_result.to_csv(result_path, encoding="utf_8_sig")
 	return test_result
 
-def train_model(model, epochs, mal_exe_samples_path_arr, benign_exe_samples_path_arr, save_path, max_len=2**20, train_test_ratio=(7, 3), limit_cnt=(-1, -1), save_best=True):
-	mal_file_name_label_arr, benign_file_name_label_arr = collect_exe_file_name_label(mal_exe_samples_path_arr, benign_exe_samples_path_arr, limit_cnt)
+def train_model(model, epochs, mal_exe_samples_path_arr, benign_exe_samples_path_arr, save_path, max_len=2**20, train_test_ratio=(7, 3), limit_cnt=(-1, -1), balanced=True, save_best=True):
+	mal_file_name_label_arr, benign_file_name_label_arr = collect_exe_file_name_label(mal_exe_samples_path_arr, benign_exe_samples_path_arr, limit_cnt, balanced)
 	
 	train_rate = train_test_ratio[0] / sum(train_test_ratio)
 	train_mal_file_cnt = math.ceil(len(mal_file_name_label_arr) * train_rate)
