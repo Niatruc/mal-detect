@@ -61,7 +61,7 @@ def KerasModel(max_len=2**20, win_size=500, vocab_size=256):
     d = Dense(64)(p)
     out = Dense(1, activation='sigmoid')(d)
 
-    model = Malconv(max_len, win_size)
+    model = Model(inp, out)
     # model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['acc'])
 
     return model
