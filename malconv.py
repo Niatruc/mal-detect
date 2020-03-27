@@ -47,7 +47,7 @@ class TorchModel(nn.Module):
 from keras.models import Model
 from keras.layers import Dense, Embedding, Conv1D, multiply, GlobalMaxPool1D, Input, Activation
 
-def KerasModel(max_len=200000, win_size=500, vocab_size=256):    
+def KerasModel(max_len=2**20, win_size=500, vocab_size=256):    
     inp = Input((max_len,))
     emb = Embedding(vocab_size, 8)(inp)
 
@@ -62,6 +62,6 @@ def KerasModel(max_len=200000, win_size=500, vocab_size=256):
     out = Dense(1, activation='sigmoid')(d)
 
     model = Malconv(max_len, win_size)
-    model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['acc'])
+    # model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['acc'])
 
     return model
