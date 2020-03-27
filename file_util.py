@@ -3,13 +3,36 @@ import numpy as np
 from sklearn import metrics
 import pandas as pd
 import matplotlib.pyplot as plt
+import tensorflow as tf
+import keras
 from keras.preprocessing.sequence import pad_sequences
 from keras.callbacks import ModelCheckpoint, EarlyStopping
 
+# 解决问题: Failed to get convolution algorithm. This is probably because cuDNN failed to initialize
+config = tf.ConfigProto()
+config.gpu_options.allow_growth = True
+keras.backend.tensorflow_backend.set_session(tf.Session(config=config))
 
-def read_file(file_path):
+
+def preprocess(fn_list, max_len):
+	corpus = []
+	for fn in fn_list:
+		if not os.path.isfile(fn):
+			print(fn, 'not exist')
+		else:
+			with open(fn, 'rb') as f:
+				corpus.append(f.read())
+    
+	corpus = [[byte for byte in doc] for doc in corpus]
+	len_list = [len(doc) for doc in corpus]
+	seq = pad_sequences(corpus, maxlen=max_len, padding='post', truncating='post')
+	return seq, len_list
+
+def read_file_to_bytes_arr(file_path, max_len):
 	file_bytes = open(file_path, "rb").read()
-	return file_bytes
+	corpus = [byte for byte in file_bytes]
+	seq = pad_sequences([corpus], maxlen=max_len, padding='post', truncating='post')[0] # pad_sequences这个函数需要一个两层嵌套的列表
+	return seq
 
 def read_files_in_dir(file_dir, max_len=2**20):
 	for root, dirs, files in os.walk(file_dir):
@@ -33,9 +56,7 @@ def read_files_batch_in_dir(file_dir, batch_size=32, max_len=2**20):
 			file_path = os.path.join(root, f)
 			file_paths.append(file_path)
 
-			file_bytes = open(file_path, "rb").read()
-			corpus = [byte for byte in file_bytes]
-			seq = pad_sequences([corpus], maxlen=max_len, padding='post', truncating='post')[0] # pad_sequences这个函数需要一个两层嵌套的列表
+			seq = read_file_to_bytes_arr(file_path, max_len)
 			batch.append(seq)
 
 			bs -= 1
@@ -93,9 +114,22 @@ def data_generator_2(mal_file_name_label_arr, benign_file_name_label_arr, batch_
 	data_generator_3(file_name_label_arr, batch_size, max_len)
 
 def data_generator_3(file_name_label_arr, batch_size=64, max_len=2**20, shuffle=True):
-	for file_name, label in file_name_label_arr:
-		file_bytes = open(file_name, 'rb').read()
-		yield(file_name, label)
+	file_name_label_arr = np.array(file_name_label_arr)
+
+	batches = [
+		file_name_label_arr[range(batch_size*i, min(len(file_name_label_arr), batch_size*(i+1)))]
+		for i in range(len(file_name_label_arr) // batch_size + 1)
+	]
+
+	for batch in batches:
+		fn_list = [fn for fn, _ in batch]
+		labels = [label for _, label in batch]
+		seqs = preprocess(fn_list, max_len)[0]
+		yield seqs, np.array(labels)
+
+	# for file_name, label in file_name_label_arr:
+	# 	seq = read_file_to_bytes_arr(file_name, max_len)
+	# 	yield(seq, label)
 
 # 一次只predict一个
 def predict_test(model, exe_samples_path, max_len=2**20, ground_truth=-1, result_path="test_result.csv", print_test=False):
@@ -139,7 +173,7 @@ def predict_test_3(model, exe_samples_path, batch_size=64, max_len=2**20, ground
 	test_result.to_csv(result_path, encoding="utf_8_sig")
 	return test_result
 
-def train_model(model, epochs, mal_exe_samples_path_arr, benign_exe_samples_path_arr, save_path, max_len=2**20, train_test_ratio=(7, 3), limit_cnt=(-1, -1), balanced=True, save_best=True):
+def train_model(model, epochs, mal_exe_samples_path_arr, benign_exe_samples_path_arr, save_path, batch_size=4, max_len=2**20, train_test_ratio=(7, 3), limit_cnt=(-1, -1), balanced=True, save_best=True):
 	mal_file_name_label_arr, benign_file_name_label_arr = collect_exe_file_name_label(mal_exe_samples_path_arr, benign_exe_samples_path_arr, limit_cnt, balanced)
 	
 	train_rate = train_test_ratio[0] / sum(train_test_ratio)
@@ -160,12 +194,12 @@ def train_model(model, epochs, mal_exe_samples_path_arr, benign_exe_samples_path
 
 	history = model.fit_generator(
 		data_generator_3(train_file_name_label_arr, batch_size, max_len),
-		steps_per_epoch=len(x_train)//batch_size + 1,
+		steps_per_epoch=len(train_file_name_label_arr)//batch_size + 1,
 		epochs=epochs, 
 		verbose=1, 
 		callbacks=[ear, mcp],
 		validation_data=data_generator_3(test_file_name_label_arr, batch_size, max_len),
-		validation_steps=len(x_test)//batch_size + 1
+		validation_steps=len(test_file_name_label_arr)//batch_size + 1
 	)
 	return history
 
