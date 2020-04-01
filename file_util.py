@@ -9,9 +9,9 @@ from keras.preprocessing.sequence import pad_sequences
 from keras.callbacks import ModelCheckpoint, EarlyStopping
 
 # 解决问题: Failed to get convolution algorithm. This is probably because cuDNN failed to initialize
-config = tf.ConfigProto()
-config.gpu_options.allow_growth = True
-keras.backend.tensorflow_backend.set_session(tf.Session(config=config))
+# config = tf.ConfigProto()
+# config.gpu_options.allow_growth = True
+# keras.backend.tensorflow_backend.set_session(tf.Session(config=config))
 
 
 def preprocess(fn_list, max_len):
@@ -73,6 +73,16 @@ def data_generator(exe_samples_path, ground_truth, batch_size=64, max_len=2**20,
 		# print(file_paths)
 		yield (file_bytes_batch, ground_truth)
 
+def split_train_test_samples(mal_file_name_label_arr, benign_file_name_label_arr, train_test_ratio=(7, 3)):
+	train_rate = train_test_ratio[0] / sum(train_test_ratio)
+	train_mal_file_cnt = math.ceil(len(mal_file_name_label_arr) * train_rate)
+	train_benign_file_cnt = math.ceil(len(benign_file_name_label_arr) * train_rate)
+
+	train_file_name_label_arr = mal_file_name_label_arr[0:train_mal_file_cnt] + benign_file_name_label_arr[0:train_benign_file_cnt]
+	test_file_name_label_arr = mal_file_name_label_arr[train_mal_file_cnt:] + benign_file_name_label_arr[train_benign_file_cnt:]
+
+	return train_file_name_label_arr, test_file_name_label_arr
+
 def collect_exe_file_name_label(mal_exe_samples_path_arr, benign_exe_samples_path_arr, limit_cnt=(-1, -1), balanced=True):
 	def get_file_name_label_arr(path_arr, label, limit_cnt):
 		file_name_arr = []
@@ -121,11 +131,12 @@ def data_generator_3(file_name_label_arr, batch_size=64, max_len=2**20, shuffle=
 		for i in range(len(file_name_label_arr) // batch_size + 1)
 	]
 
-	for batch in batches:
-		fn_list = [fn for fn, _ in batch]
-		labels = [label for _, label in batch]
-		seqs = preprocess(fn_list, max_len)[0]
-		yield seqs, np.array(labels)
+	while True:
+		for batch in batches:
+			fn_list = [fn for fn, _ in batch]
+			labels = [label for _, label in batch]
+			seqs = preprocess(fn_list, max_len)[0]
+			yield seqs, np.array(labels)
 
 	# for file_name, label in file_name_label_arr:
 	# 	seq = read_file_to_bytes_arr(file_name, max_len)
@@ -173,15 +184,10 @@ def predict_test_3(model, exe_samples_path, batch_size=64, max_len=2**20, ground
 	test_result.to_csv(result_path, encoding="utf_8_sig")
 	return test_result
 
-def train_model(model, epochs, mal_exe_samples_path_arr, benign_exe_samples_path_arr, save_path, batch_size=4, max_len=2**20, train_test_ratio=(7, 3), limit_cnt=(-1, -1), balanced=True, save_best=True):
-	mal_file_name_label_arr, benign_file_name_label_arr = collect_exe_file_name_label(mal_exe_samples_path_arr, benign_exe_samples_path_arr, limit_cnt, balanced)
-	
-	train_rate = train_test_ratio[0] / sum(train_test_ratio)
-	train_mal_file_cnt = math.ceil(len(mal_file_name_label_arr) * train_rate)
-	train_benign_file_cnt = math.ceil(len(benign_file_name_label_arr) * train_rate)
+def train_model(model, epochs, train_file_name_label_arr, test_file_name_label_arr, save_path, batch_size=4, max_len=2**20, train_test_ratio=(7, 3), limit_cnt=(-1, -1), balanced=True, save_best=True):
+	# mal_file_name_label_arr, benign_file_name_label_arr = collect_exe_file_name_label(mal_exe_samples_path_arr, benign_exe_samples_path_arr, limit_cnt, balanced)
 
-	train_file_name_label_arr = mal_file_name_label_arr[0:train_mal_file_cnt] + benign_file_name_label_arr[0:train_benign_file_cnt]
-	test_file_name_label_arr = mal_file_name_label_arr[train_mal_file_cnt:] + benign_file_name_label_arr[train_benign_file_cnt:]
+	# train_file_name_label_arr, test_file_name_label_arr = split_train_test_samples(mal_file_name_label_arr, benign_file_name_label_arr, train_test_ratio)
 
 	# 回调函数
 	ear = EarlyStopping(monitor='val_acc', patience=5) # patience: 当early stop被激活(如发现loss相比上一个epoch训练没有下降)，则经过patience个epoch后停止训练
