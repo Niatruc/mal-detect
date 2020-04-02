@@ -126,8 +126,12 @@ def data_generator_2(mal_file_name_label_arr, benign_file_name_label_arr, batch_
 def data_generator_3(file_name_label_arr, batch_size=64, max_len=2**20, shuffle=True):
 	file_name_label_arr = np.array(file_name_label_arr)
 
+	idx = np.arange(len(file_name_label_arr))
+	if shuffle:
+		np.random.shuffle(idx)
+
 	batches = [
-		file_name_label_arr[range(batch_size*i, min(len(file_name_label_arr), batch_size*(i+1)))]
+		file_name_label_arr[idx[range(batch_size*i, min(len(file_name_label_arr), batch_size*(i+1)))]]
 		for i in range(len(file_name_label_arr) // batch_size + 1)
 	]
 
