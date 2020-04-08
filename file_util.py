@@ -15,6 +15,9 @@ from keras.callbacks import ModelCheckpoint, EarlyStopping
 
 
 def preprocess(fn_list, max_len):
+	'''fn_list: 完整文件路径列表
+	将fn_list中的二进制可执行文件按字节读进数组(按max_len补足长度)
+	'''
 	corpus = []
 	for fn in fn_list:
 		if not os.path.isfile(fn):
@@ -29,6 +32,8 @@ def preprocess(fn_list, max_len):
 	return seq, len_list
 
 def read_file_to_bytes_arr(file_path, max_len):
+	'''将一个二进制可执行文件按字节读进数组(按max_len补足长度)
+	'''
 	file_bytes = open(file_path, "rb").read()
 	corpus = [byte for byte in file_bytes]
 	seq = pad_sequences([corpus], maxlen=max_len, padding='post', truncating='post')[0] # pad_sequences这个函数需要一个两层嵌套的列表
@@ -108,6 +113,9 @@ def collect_exe_file_name_label(mal_exe_samples_path_arr, benign_exe_samples_pat
 
 	return mal_file_name_label_arr, benign_file_name_label_arr
 
+def collect_exe_file_name_label_to_csv(mal_exe_samples_path_arr, benign_exe_samples_path_arr, limit_cnt=(-1, -1)):
+	mal_file_name_label_arr, benign_file_name_label_arr = collect_exe_file_name_label(mal_exe_samples_path_arr, benign_exe_samples_path_arr, balanced=False)
+
 def data_generator_2(mal_file_name_label_arr, benign_file_name_label_arr, batch_size=64, max_len=2**20, shuffle=True, balanced=False):
 	# idx = np.arange(len(data))
 	# if shuffle:
@@ -146,7 +154,12 @@ def data_generator_3(file_name_label_arr, batch_size=64, max_len=2**20, shuffle=
 	# 	seq = read_file_to_bytes_arr(file_name, max_len)
 	# 	yield(seq, label)
 
-# 一次只predict一个
+def predict_benign_mal(model, file_path, max_len=2**20):
+	seq = read_file_to_bytes_arr(file_path, max_len)
+	score = model.predict(np.array([seq]))[0]
+	return score
+
+# 一次只predict一个(即没有用batch)
 def predict_test(model, exe_samples_path, max_len=2**20, ground_truth=-1, result_path="test_result.csv", print_test=False):
 	test_result = pd.DataFrame(columns=('file_name', 'ground_truth', 'predict_score'))
 	for file_path, file_bytes in read_files_in_dir(exe_samples_path):
@@ -185,6 +198,21 @@ def predict_test_3(model, exe_samples_path, batch_size=64, max_len=2**20, ground
 	)
 
 	test_result = pd.DataFrame([[os.path.join(root, files[i]), ground_truth, p[i][0]] for i in range(len(files))], columns=('file_name', 'ground_truth', 'predict_score'))
+	test_result.to_csv(result_path, encoding="utf_8_sig")
+	return test_result
+
+def predict_test_4(model, test_file_name_label_arr, batch_size=64, max_len=2**20, result_path="test_result.csv", workers=1, use_multiprocessing=False):
+	'''同上，为多线程，不过这里用的是测试样本集的 (文件路径，标签) 对，所以同时测试正负两类样本
+	'''
+	p = model.predict_generator(
+		generator = data_generator_3(test_file_name_label_arr, batch_size, max_len, shuffle=False),
+		steps = len(test_file_name_label_arr) // batch_size + 1,
+		verbose = 1,
+		workers = workers,
+		use_multiprocessing = use_multiprocessing,
+	)
+
+	test_result = pd.DataFrame([[test_file_name_label_arr[i][0], test_file_name_label_arr[i][1], p[i][0]] for i in range(len(test_file_name_label_arr))], columns=('file_name', 'ground_truth', 'predict_score'))
 	test_result.to_csv(result_path, encoding="utf_8_sig")
 	return test_result
 
