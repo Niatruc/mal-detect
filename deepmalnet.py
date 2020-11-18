@@ -5,9 +5,9 @@ import torch.utils.data as Data
 from torch.utils.data import Dataset, TensorDataset, DataLoader
 import numpy as np
 
-class MalDect(nn.Module):
+class MalDetect(nn.Module):
     def __init__(self):
-        super(MalDect, self).__init__()
+        super(MalDetect, self).__init__()
 
         self.model = torch.nn.Sequential(
 

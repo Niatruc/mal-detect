@@ -202,7 +202,7 @@ def predict_test_3(model, exe_samples_path, batch_size=64, max_len=2**20, ground
 	return test_result
 
 def predict_test_4(model, test_file_name_label_arr, batch_size=64, max_len=2**20, result_path="test_result.csv", workers=1, use_multiprocessing=False):
-	'''同上，为多线程，不过这里用的是测试样本集的 (文件路径，标签) 对，所以同时测试正负两类样本
+	'''同上，为多线程，不过这里用的是样本集的 (文件路径，标签) 对，所以同时测试正负两类样本
 	'''
 	p = model.predict_generator(
 		generator = data_generator_3(test_file_name_label_arr, batch_size, max_len, shuffle=False),
