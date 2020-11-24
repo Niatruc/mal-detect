@@ -208,6 +208,7 @@ class DE:
                 self.best_fitness_value = new_fitness_value
                 self.best_unit = unit
 
+    # 计算修改后的adv
     def diff_adv(self, diff_vector):
         adv = self.adv.copy()[0]
 
@@ -279,5 +280,5 @@ class DE:
                 break
 
         final_adv = self.diff_adv(self.best_unit.vector)
-        return final_adv
+        return np.array([final_adv])
 
