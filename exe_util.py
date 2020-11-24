@@ -38,7 +38,7 @@ def find_pe_modifiable_range(exe_file_path, max_len = 2**20, use_range=0b1111):
     # 各区块因补齐而产生的剩余可改空间
     pe_modifiable_sections_range_list = []
     for sec in exe_info.sections:
-        if sec.size == sec.virtual_size:
+        if sec.size <= sec.virtual_size:
             continue
         pe_modifiable_sections_range_list.append((sec.offset + sec.virtual_size, sec.offset + sec.size))
 

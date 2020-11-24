@@ -14,7 +14,7 @@ DOS_HEADER_MODIFY_RANGE1 = (2, 0x40 - 4)
 DOS_HEADER_MODIFY_RANGE2 = (0x40, 0x80)
 
 # 实验发现,pad_len为32时没有效果,到64时则可以
-def gen_adv_samples(model, fn_list, strategy=0, changed_bytes_cnt=16, thres=0.5, *, step_size=0.1, max_iter=1000, individual_cnt=10, change_range=0b1111, use_kick_mutation=True):
+def gen_adv_samples(model, fn_list, strategy=0, changed_bytes_cnt=16, thres=0.5, batch_size=10, *, step_size=0.1, max_iter=1000, individual_cnt=10, change_range=0b1111, use_kick_mutation=True):
     max_len = int(model.input.shape[1])  # 模型接受的输入数据的长度
     inp2emb = K.function([model.input]+ [K.learning_phase()], [model.layers[1].output]) # 嵌入层函数
     embs = [inp2emb([i])[0] for i in range(0,256)] # 求0~255各数字对应的嵌入向量
@@ -28,7 +28,7 @@ def gen_adv_samples(model, fn_list, strategy=0, changed_bytes_cnt=16, thres=0.5,
         pad_idx = len_list[0]   # 以文件的长度作为填充字节的起始下标
         org_score = model.predict(inp)[0][0]    # 模型对未添加噪声的文件的预测概率(1表示恶意)
         # loss, pred = float('nan'), float('nan')
-        predict_func = functools.partial(model.predict, batch_size=10)
+        predict_func = functools.partial(model.predict, batch_size=batch_size)
 
         if strategy == 0 or strategy == 1:
             pad_len = max(min(changed_bytes_cnt, max_len - pad_idx), 0)
