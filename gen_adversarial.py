@@ -17,7 +17,7 @@ DOS_HEADER_MODIFY_RANGE2 = (0x40, 0x80)
 def gen_adv_samples(model, fn_list, strategy=0, changed_bytes_cnt=16, thres=0.5, *, step_size=0.1, max_iter=1000, individual_cnt=10, change_range=0b1111, use_kick_mutation=True):
     max_len = int(model.input.shape[1])  # 模型接受的输入数据的长度
     inp2emb = K.function([model.input]+ [K.learning_phase()], [model.layers[1].output]) # 嵌入层函数
-    embs = [inp2emb(i)[0] for i in range(0,256)] # 求0~255各数字对应的嵌入向量
+    embs = [inp2emb([i])[0] for i in range(0,256)] # 求0~255各数字对应的嵌入向量
 
     log = utils.Logger()
     adv_samples = []
