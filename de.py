@@ -280,5 +280,5 @@ class DE:
                 break
 
         final_adv = self.diff_adv(self.best_unit.vector)
-        return np.array([final_adv])
+        return np.array([final_adv]), iter_sum
 

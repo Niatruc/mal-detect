@@ -21,6 +21,7 @@ def gen_adv_samples(model, fn_list, strategy=0, changed_bytes_cnt=16, thres=0.5,
 
     log = utils.Logger()
     adv_samples = []
+    test_info = {}
 
     for e, fn in enumerate(fn_list):
         inp, len_list = preprocess([fn], max_len)
@@ -54,15 +55,17 @@ def gen_adv_samples(model, fn_list, strategy=0, changed_bytes_cnt=16, thres=0.5,
                 modifiable_range_list,
                 [(0, 255)]
             ], F=0.2, kick_units_rate=1.)
-            adv = de_algo.update(iter_cnt=max_iter, use_kick_mutation=use_kick_mutation)
+            adv, iter_sum = de_algo.update(iter_cnt=max_iter, use_kick_mutation=use_kick_mutation)
             final_adv = adv[0]
+            test_info['iter_sum'] = iter_sum
 
         pred = model.predict(adv)[0][0]
+        test_info['final_score'] = pred
         # log.write(fn, org_score, pad_idx, pad_len, loss, pred)
 
         # 整数数组转字节序列
         bin_adv = bytes(list(final_adv))
         adv_samples.append(bin_adv)
 
-    return adv_samples, log
+    return adv_samples, test_info
 
