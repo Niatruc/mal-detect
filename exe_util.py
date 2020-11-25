@@ -73,4 +73,4 @@ def find_pe_modifiable_range(exe_file_path, max_len = 2**20, use_range=0b1111):
         if bound[0] < bound[1]:
             final_selected_modifiable_range2.append(bound)
 
-    return final_selected_modifiable_range
+    return final_selected_modifiable_range2

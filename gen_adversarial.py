@@ -10,9 +10,6 @@ import utils, de, fgsm, evade_at_test_time, exe_util
 from file_util import preprocess
 import functools
 
-DOS_HEADER_MODIFY_RANGE1 = (2, 0x40 - 4)
-DOS_HEADER_MODIFY_RANGE2 = (0x40, 0x80)
-
 # 实验发现,pad_len为32时没有效果,到64时则可以
 def gen_adv_samples(model, fn_list, strategy=0, changed_bytes_cnt=16, thres=0.5, batch_size=10, *, step_size=0.1, max_iter=1000, individual_cnt=10, change_range=0b1111, use_kick_mutation=True):
     max_len = int(model.input.shape[1])  # 模型接受的输入数据的长度
