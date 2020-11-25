@@ -8,7 +8,8 @@ import file_util, gen_adversarial, utils
 # os.sys.path.append("/home/bohan/res/ml_models/zbh/")
 parser = argparse.ArgumentParser(description='Malconv-keras adversarial attack')
 parser.add_argument('--limit', type=float, default=0., help="limit gpu memory percentage")
-parser.add_argument('--strategy', type=float, default=0., help="Strategy (0/1: fgsm; 2: de")
+parser.add_argument('--strategy', type=int, default=2, help="Strategy (0/1: fgsm; 2: de")
+parser.add_argument('--gpu_num', type=int, default=0, help="Choose a gpu")
 parser.add_argument('--model_path', type=str, default='../../ember/malconv/malconv.h5',    help="MalConv's path")
 parser.add_argument('--save_path', type=str, default='../model_test_result/attack_result.csv',    help="Path for saving attack result")
 parser.add_argument('--malware_test_res_csv_path', type=str, default='../model_test_result/virusshare_1000.csv',    help="malware_test_res_csv_path")
@@ -22,6 +23,10 @@ parser.add_argument('--use_kick_mutation', type=bool, default=True,    help="use
 
 if __name__ == '__main__':
     args = parser.parse_args()
+
+    os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu_num)
+
     utils.limit_gpu_memory(args.limit)
     malconv = load_model(args.model_path)
 
@@ -32,7 +37,8 @@ if __name__ == '__main__':
         virus_path = args.virusshare_dir + file_name
         print("开始操作: %s" % virus_path)
 
-        _, test_info = gen_adversarial.gen_adv_samples(malconv, [virus_path], strategy=2,
+        _, test_info = gen_adversarial.gen_adv_samples(malconv, [virus_path],
+            strategy=args.strategy,
             changed_bytes_cnt=args.changed_bytes_cnt,
             max_iter=args.max_iter,
             batch_size=args.batch_size,
