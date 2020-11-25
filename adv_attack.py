@@ -13,6 +13,8 @@ parser.add_argument('--gpu_num', type=int, default=0, help="Choose a gpu")
 parser.add_argument('--model_path', type=str, default='../../ember/malconv/malconv.h5',    help="MalConv's path")
 parser.add_argument('--save_path', type=str, default='../model_test_result/attack_result.csv',    help="Path for saving attack result")
 parser.add_argument('--malware_test_res_csv_path', type=str, default='../model_test_result/virusshare_1000.csv',    help="malware_test_res_csv_path")
+parser.add_argument('--from_row', type=int, default=0,    help="From which row in <malware_test_res_csv_path>.csv")
+parser.add_argument('--to_row', type=int, default=1000,    help="To which row in <malware_test_res_csv_path>.csv")
 parser.add_argument('--virusshare_dir', type=str, default='../../../ml_dataset/virusshare/',    help="virusshare_dir")
 parser.add_argument('--changed_bytes_cnt', type=int, default=8,    help="changed_bytes_cnt")
 parser.add_argument('--max_iter', type=int, default=1,    help="max_iter")
@@ -36,6 +38,7 @@ if __name__ == '__main__':
     except Exception:
         attack_result = pd.DataFrame(columns=('file_name', 'org_score', 'iter_sum', 'final_score'))
 
+    malware_test_res = malware_test_res[args.from_row : args.to_row + 1]
     for index, row in malware_test_res.iterrows():
         virus_path = args.virusshare_dir + row.file_name
         print("开始操作: %s" % virus_path)
