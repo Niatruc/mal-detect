@@ -40,7 +40,9 @@ def find_pe_modifiable_range(exe_file_path, max_len = 2**20, use_range=0b1111):
     for sec in exe_info.sections:
         if sec.size <= sec.virtual_size:
             continue
-        pe_modifiable_sections_range_list.append((sec.offset + sec.virtual_size, sec.offset + sec.size))
+        if sec.offset + sec.virtual_size >= max_len:
+            break
+        pe_modifiable_sections_range_list.append((sec.offset + sec.virtual_size, min(sec.offset + sec.size, max_len)))
 
     modifiable_range_selection = [
         [dos_header_modifiable_range1, dos_header_modifiable_range2],
@@ -65,5 +67,10 @@ def find_pe_modifiable_range(exe_file_path, max_len = 2**20, use_range=0b1111):
         use_range //= 2
         if select_part:
             final_selected_modifiable_range += modifiable_range_selection[i]
+
+    final_selected_modifiable_range2 = []
+    for bound in final_selected_modifiable_range:
+        if bound[0] < bound[1]:
+            final_selected_modifiable_range2.append(bound)
 
     return final_selected_modifiable_range

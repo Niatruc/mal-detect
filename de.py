@@ -1,5 +1,6 @@
 import numpy as np
 import random
+import sys
 from functools import reduce
 
 class DE:
@@ -271,6 +272,7 @@ class DE:
             self.fitness_val_list.append(self.best_fitness_value)
             iter_sum += 1
             print(iter_sum, ' ', self.best_fitness_value)
+            sys.stdout.flush()
 
             if iter_cnt > -1:
                 cnt += 1
