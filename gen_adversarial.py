@@ -6,8 +6,8 @@ import tensorflow as tf
 from keras.models import load_model
 from keras import backend as K, losses
 from sklearn.neighbors import NearestNeighbors
-from mal_detect import utils, de, fgsm, evade_at_test_time, exe_util
-from mal_detect.file_util import preprocess
+import utils, de, fgsm, evade_at_test_time, exe_util
+from file_util import preprocess
 import functools
 
 DOS_HEADER_MODIFY_RANGE1 = (2, 0x40 - 4)
@@ -23,12 +23,13 @@ def gen_adv_samples(model, fn_list, strategy=0, changed_bytes_cnt=16, thres=0.5,
     adv_samples = []
     test_info = {}
 
+    predict_func = functools.partial(model.predict, batch_size=batch_size)
+
     for e, fn in enumerate(fn_list):
         inp, len_list = preprocess([fn], max_len)
         pad_idx = len_list[0]   # 以文件的长度作为填充字节的起始下标
         org_score = model.predict(inp)[0][0]    # 模型对未添加噪声的文件的预测概率(1表示恶意)
         # loss, pred = float('nan'), float('nan')
-        predict_func = functools.partial(model.predict, batch_size=batch_size)
 
         if strategy == 0 or strategy == 1:
             pad_len = max(min(changed_bytes_cnt, max_len - pad_idx), 0)

@@ -2,11 +2,13 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 from keras.backend.tensorflow_backend import set_session
-from mal_detect.file_util import preprocess
+from file_util import preprocess
 
 def limit_gpu_memory(per):
     config = tf.ConfigProto()
-    config.gpu_options.per_process_gpu_memory_fraction = per
+    config.gpu_options.allow_growth = True
+    if per > 0:
+        config.gpu_options.per_process_gpu_memory_fraction = per
     set_session(tf.Session(config=config))
 
     
