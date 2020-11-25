@@ -246,23 +246,29 @@ class DE:
         iter_sum = 0
         while True:
             # 每隔一定代数, 检查是否有某些维已经收敛. 对这些随机取一些个体, 对它们在这些维上重新取随机值(刺激性的突变), 并算一次适应值
-            if use_kick_mutation and iter_sum % self.check_convergence_per_iter == 0:
+            if iter_sum % self.check_convergence_per_iter == 0:
                 dim_convergence = self.check_dim_convergence()
                 if True in dim_convergence:
-                    print("出现收敛的维度, 进行刺激性的突变")
                     convergent_dims = []
                     for i, is_convergent in enumerate(dim_convergence):
                         if is_convergent:
                             convergent_dims.append(i)
-                    print("收敛的维度为: ", convergent_dims)
-                    kick_units_cnt = int(self.individual_cnt * self.kick_units_rate)
-                    unit_nums = list(range(self.individual_cnt))
-                    random.shuffle(unit_nums)
-                    for unit_num in unit_nums[0:kick_units_cnt]:
-                        unit = self.unit_list[unit_num]
-                        if unit != self.best_unit:  # 原有的最佳个体不要改
-                            for dim in convergent_dims:
-                                unit.vector[dim] = unit.get_rand_value_for_ith_dim(dim)
+                    print("有收敛的维度为: ", convergent_dims)
+
+                    if len(convergent_dims) == len(self.bounds):
+                        print("所有维度收敛")
+                        break
+
+                    if use_kick_mutation:
+                        print("进行刺激性的突变")
+                        kick_units_cnt = int(self.individual_cnt * self.kick_units_rate)
+                        unit_nums = list(range(self.individual_cnt))
+                        random.shuffle(unit_nums)
+                        for unit_num in unit_nums[0:kick_units_cnt]:
+                            unit = self.unit_list[unit_num]
+                            if unit != self.best_unit:  # 原有的最佳个体不要改
+                                for dim in convergent_dims:
+                                    unit.vector[dim] = unit.get_rand_value_for_ith_dim(dim)
                 self.calc_best_fitness()
                 self.fitness_val_list.append(self.best_fitness_value)
 

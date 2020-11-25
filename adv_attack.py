@@ -23,7 +23,9 @@ parser.add_argument('--de_individual_cnt', type=int, default=32,    help="de_ind
 parser.add_argument('--de_change_range', type=int, default=0b1111,    help="de_change_range")
 parser.add_argument('--use_kick_mutation', type=bool, default=True,    help="use_kick_mutation")
 
-if __name__ == '__main__':
+TEST = False
+
+if __name__ == '__main__' and not TEST:
     args = parser.parse_args()
 
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
@@ -61,14 +63,21 @@ if __name__ == '__main__':
 
         attack_result.to_csv(args.save_path)
 
+if TEST:
+    utils.limit_gpu_memory(0)
+    malconv = load_model("../../ember/malconv/malconv.h5")
 
-# adv_samples, log = gen_adversarial.gen_adv_samples(malconv, ['/home/bohan/res/ml_dataset/Malware_Detection_PE-Based_Analysis_Using_Deep_Learning_Algorithm_Dataset_old/Dataset/Virus/Virus train/Locker/VirusShare_13c63e0329202076f45796dba3ed6b8f.exe'])
-# adv_samples, log = gen_adversarial.gen_adv_samples(
-#     malconv, [
-#         # '/home/bohan/res/ml_dataset/virusshare/VirusShare_24580df24fb34966023b5dd6b37b1a3c',
-#         '/home/bohan/res/ml_dataset/virusshare/VirusShare_3c8c59d25ecb9bd91e7b933113578e40',
-#         # '/home/bohan/res/ml_dataset/Malware_Detection_PE-Based_Analysis_Using_Deep_Learning_Algorithm_Dataset_old/Dataset/Virus/Virus train/Locker/VirusShare_13c63e0329202076f45796dba3ed6b8f.exe'
-#     ], strategy=2, changed_bytes_cnt=8, max_iter=50, individual_cnt=32, change_range=0b1111, use_kick_mutation=True)
-# adv_samples, log = gen_adversarial.gen_adv_samples(malconv, ['/home/bohan/res/ml_dataset/virusshare/VirusShare_24580df24fb34966023b5dd6b37b1a3c'], 90)
-
-
+    adv_samples, log = gen_adversarial.gen_adv_samples(
+        malconv, [
+            '/home/bohan/res/ml_dataset/virusshare/VirusShare_24580df24fb34966023b5dd6b37b1a3c',
+            # '/home/bohan/res/ml_dataset/virusshare/VirusShare_3c8c59d25ecb9bd91e7b933113578e40',
+            # '/home/bohan/res/ml_dataset/Malware_Detection_PE-Based_Analysis_Using_Deep_Learning_Algorithm_Dataset_old/Dataset/Virus/Virus train/Locker/VirusShare_13c63e0329202076f45796dba3ed6b8f.exe'
+        ],
+        strategy=2,
+        changed_bytes_cnt=1,
+        max_iter=5000,
+        individual_cnt=32,
+        change_range=0b0111,
+        use_kick_mutation=True,
+        check_convergence_per_iter=100,
+    )
