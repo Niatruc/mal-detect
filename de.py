@@ -255,7 +255,7 @@ class DE:
                             convergent_dims.append(i)
                     print("有收敛的维度为: ", convergent_dims)
 
-                    if len(convergent_dims) == len(self.bounds):
+                    if len(convergent_dims) == len(self.bounds) and not use_kick_mutation:
                         print("所有维度收敛")
                         break
 

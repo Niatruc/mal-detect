@@ -4,6 +4,7 @@ def find_pe_modifiable_range(exe_file_path, max_len = 2**20, use_range=0b1111):
     exe_info = lief.parse(exe_file_path)
 
     if not exe_info:
+        print("该文件可能为打包的文件")
         modifiable_range_selection = find_packed_pe_modifiable_range(exe_file_path, max_len)
     else:
         dos_header_modifiable_range1 = (2, 0x40 - 4)
