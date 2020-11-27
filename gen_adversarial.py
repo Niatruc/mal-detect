@@ -10,13 +10,21 @@ import utils, de, fgsm, evade_at_test_time, exe_util
 from file_util import preprocess
 import functools
 
-# 实验发现,pad_len为32时没有效果,到64时则可以
-def gen_adv_samples(model, fn_list, strategy=0, changed_bytes_cnt=16, thres=0.5, batch_size=10, *, step_size=0.1, max_iter=1000, individual_cnt=10, change_range=0b1111, use_kick_mutation=True, check_convergence_per_iter=100):
-    max_len = int(model.input.shape[1])  # 模型接受的输入数据的长度
-    inp2emb = K.function([model.input]+ [K.learning_phase()], [model.layers[1].output]) # 嵌入层函数
-    embs = [inp2emb([i])[0] for i in range(0,256)] # 求0~255各数字对应的嵌入向量
 
-    log = utils.Logger()
+# 实验发现,pad_len为32时没有效果,到64时则可以
+def gen_adv_samples(
+        model, fn_list,
+        strategy=0, changed_bytes_cnt=16, thres=0.5, batch_size=10,
+        *, step_size=0.1, max_iter=1000, individual_cnt=10,
+        change_range=0b1111, use_kick_mutation=True, check_convergence_per_iter=100
+):
+    max_len = int(model.input.shape[1])  # 模型接受的输入数据的长度
+
+    if strategy == 0 or strategy == 1:
+        inp2emb = K.function([model.input]+ [K.learning_phase()], [model.layers[1].output]) # 嵌入层函数
+        embs = [inp2emb([i])[0] for i in range(0,256)] # 求0~255各数字对应的嵌入向量
+
+    # log = utils.Logger()
     adv_samples = []
     test_info = {}
 

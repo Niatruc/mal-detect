@@ -43,7 +43,7 @@ if __name__ == '__main__' and not TEST:
     malware_test_res = malware_test_res[args.from_row : args.to_row]
     for index, row in malware_test_res.iterrows():
         virus_path = args.virusshare_dir + row.file_name
-        print("开始操作: %s" % virus_path)
+        print("开始操作: %d: %s" % (index, virus_path))
 
         _, test_info = gen_adversarial.gen_adv_samples(malconv, [virus_path],
             strategy=args.strategy,
