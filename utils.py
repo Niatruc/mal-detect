@@ -1,8 +1,8 @@
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+import keras
 from keras.backend.tensorflow_backend import set_session
-from file_util import preprocess
 
 def limit_gpu_memory(per):
     config = tf.ConfigProto()
@@ -56,3 +56,20 @@ class Logger():
                                               'file length', 'pad length', 
                                               'predict score'])
         print('\nLog saved to "%s"\n' % path)
+
+
+class ExeContentSequence(keras.utils.Sequence):
+
+    def __init__(self, x_set, y_set, batch_size):
+        self.x, self.y = x_set, y_set
+        self.batch_size = batch_size
+
+    def __len__(self):
+        return int(np.ceil(len(self.x) / float(self.batch_size)))
+
+    def __getitem__(self, idx):
+        # print(idx)
+        batch_x = self.x[idx * self.batch_size : (idx + 1) * self.batch_size]
+        batch_y = self.y[idx * self.batch_size : (idx + 1) * self.batch_size]
+
+        return np.array(batch_x), np.array(batch_y)

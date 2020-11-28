@@ -14,7 +14,7 @@ import functools
 # 实验发现,pad_len为32时没有效果,到64时则可以
 def gen_adv_samples(
         model, fn_list,
-        strategy=0, changed_bytes_cnt=16, thres=0.5, batch_size=10,
+        strategy=0, changed_bytes_cnt=16, thres=0.5, batch_size=10, workers=1,
         *, step_size=0.1, max_iter=1000, individual_cnt=10,
         change_range=0b1111, use_kick_mutation=True, check_convergence_per_iter=100
 ):
@@ -28,7 +28,20 @@ def gen_adv_samples(
     adv_samples = []
     test_info = {}
 
-    predict_func = functools.partial(model.predict, batch_size=batch_size)
+    if workers <= 1:
+        predict_func = functools.partial(model.predict, batch_size=batch_size)
+    else:   # 使用多线程(发现无法提速)
+        def predict_func(binaries_list):
+            res1 = model.predict(binaries_list, batch_size=batch_size)
+            batch_cnt = np.ceil(len(binaries_list) // batch_size)
+            res = model.predict_generator(
+                generator=utils.ExeContentSequence(binaries_list, [1] * len(binaries_list), batch_size),
+                steps=batch_cnt,
+                verbose=1,
+                workers=workers,
+                use_multiprocessing=True,
+            )
+            return res
 
     for e, fn in enumerate(fn_list):
         inp, len_list = preprocess([fn], max_len)
@@ -39,17 +52,39 @@ def gen_adv_samples(
         if strategy == 0 or strategy == 1:
             pad_len = max(min(changed_bytes_cnt, max_len - pad_idx), 0)
             if pad_len > 0:
+                if change_range == 0:
+                    modifiable_range_list = [(pad_idx, pad_idx + pad_len)]
+                else:
+                    modifiable_range_list = exe_util.find_pe_modifiable_range(fn, use_range=change_range)
+                    cbc = changed_bytes_cnt
+                    mrl = []
+                    for bound in modifiable_range_list:
+                        bound_len = bound[1] - bound[0]
+                        if cbc < bound_len:
+                            mrl.append((bound[0], bound[0] + cbc))
+                            cbc = 0
+                            break
+                        else:
+                            mrl.append(bound)
+                            cbc -= bound_len
+                    modifiable_range_list = mrl
+                for bound in modifiable_range_list:
+                    bound_len = bound[1] - bound[0]
+                    noise = np.zeros(bound_len)
+                    noise = np.random.randint(0, 255, bound_len)
+                    inp[0][bound[0]: bound[1]] = noise
+
                 # 填充字节
-                noise = np.zeros(pad_len)
-                noise = np.random.randint(0, 255, pad_len)
-                inp[0][pad_idx: pad_idx + pad_len] = noise
+                # noise = np.zeros(pad_len)
+                # noise = np.random.randint(0, 255, pad_len)
+                # inp[0][pad_idx: pad_idx + pad_len] = noise
                 inp_emb = np.squeeze(np.array(inp2emb([inp, False])), 0)
 
                 if thres < org_score:
                     if strategy == 0:
-                        adv, gradient, loss = fgsm(model, inp, inp_emb, pad_idx, pad_len, e, step_size)
+                        adv, gradient, loss = fgsm.fgsm(model, inp, inp_emb, modifiable_range_list, step_size, thres)
                     elif strategy == 1:
-                        adv, gradient, loss = evade_at_test_time(model, inp, inp_emb, pad_idx, pad_len, embs, step_size, rounds = 100)
+                        adv, gradient, loss = evade_at_test_time.evade_at_test_time(model, inp, inp_emb, pad_idx, pad_len, embs, modifiable_range_list, step_size, rounds = 100)
                 final_adv = adv[0][:pad_idx + pad_len]
             else:  # 使用原始文件
                 final_adv = inp[0][:pad_idx]
@@ -69,6 +104,7 @@ def gen_adv_samples(
 
         pred = model.predict(adv)[0][0]
         test_info['final_score'] = pred
+        print("最终置信度: ", pred)
         # log.write(fn, org_score, pad_idx, pad_len, loss, pred)
 
         # 整数数组转字节序列

@@ -9,7 +9,8 @@ import file_util, gen_adversarial, utils
 parser = argparse.ArgumentParser(description='Malconv-keras adversarial attack')
 parser.add_argument('--limit', type=float, default=0., help="limit gpu memory percentage")
 parser.add_argument('--strategy', type=int, default=2, help="Strategy (0/1: fgsm; 2: de")
-parser.add_argument('--gpu_num', type=int, default=0, help="Choose a gpu")
+parser.add_argument('--gpu_num', type=str, default=0, help="Choose a gpu")
+parser.add_argument('--workers_cnt', type=int, default=0, help="Threads count")
 parser.add_argument('--model_path', type=str, default='../../ember/malconv/malconv.h5',    help="MalConv's path")
 parser.add_argument('--save_path', type=str, default='../model_test_result/attack_result.csv',    help="Path for saving attack result")
 parser.add_argument('--malware_test_res_csv_path', type=str, default='../model_test_result/virusshare_1000.csv',    help="malware_test_res_csv_path")
@@ -23,13 +24,13 @@ parser.add_argument('--de_individual_cnt', type=int, default=32,    help="de_ind
 parser.add_argument('--de_change_range', type=int, default=0b1111,    help="de_change_range")
 parser.add_argument('--use_kick_mutation', type=bool, default=True,    help="use_kick_mutation")
 
-TEST = False
+TEST = True
 
 if __name__ == '__main__' and not TEST:
     args = parser.parse_args()
 
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-    os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu_num)
+    os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_num
 
     utils.limit_gpu_memory(args.limit)
     malconv = load_model(args.model_path)
@@ -46,6 +47,7 @@ if __name__ == '__main__' and not TEST:
         print("开始操作: %d: %s" % (index, virus_path))
 
         _, test_info = gen_adversarial.gen_adv_samples(malconv, [virus_path],
+            workers=args.workers_cnt,
             strategy=args.strategy,
             changed_bytes_cnt=args.changed_bytes_cnt,
             max_iter=args.max_iter,
@@ -69,15 +71,19 @@ if TEST:
 
     adv_samples, log = gen_adversarial.gen_adv_samples(
         malconv, [
-            '/home/bohan/res/ml_dataset/virusshare/VirusShare_24580df24fb34966023b5dd6b37b1a3c',
-            # '/home/bohan/res/ml_dataset/virusshare/VirusShare_3c8c59d25ecb9bd91e7b933113578e40',
+            # '/home/bohan/res/ml_dataset/virusshare/VirusShare_24580df24fb34966023b5dd6b37b1a3c',
+            '/home/bohan/res/ml_dataset/virusshare/VirusShare_3c8c59d25ecb9bd91e7b933113578e40',
+            '/home/bohan/res/ml_dataset/virusshare/VirusShare_3a4fac1796f0816d7567abb9bf0a9440',
+            '/home/bohan/res/ml_dataset/virusshare/VirusShare_01cd58ba6e5f9d1e1f718dfba7478d30',
             # '/home/bohan/res/ml_dataset/Malware_Detection_PE-Based_Analysis_Using_Deep_Learning_Algorithm_Dataset_old/Dataset/Virus/Virus train/Locker/VirusShare_13c63e0329202076f45796dba3ed6b8f.exe'
         ],
-        strategy=2,
-        changed_bytes_cnt=1,
+        strategy=0,
+        workers=1,
+        changed_bytes_cnt=8,
         max_iter=5000,
         individual_cnt=32,
-        change_range=0b0111,
+        batch_size=32,
+        change_range=0b0001,
         use_kick_mutation=True,
         check_convergence_per_iter=100,
     )

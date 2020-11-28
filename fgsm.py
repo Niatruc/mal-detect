@@ -2,7 +2,8 @@ from keras import backend as K, losses
 import numpy as np
 from sklearn.neighbors import NearestNeighbors
 
-def fgsm(model, inp,  inp_emb, pad_idx, pad_len, e, step_size=0.1):
+
+def fgsm(model, inp,  inp_emb, modifiable_range_list, step_size=0.1, thres=0.5):
     adv_emb = inp_emb.copy()
     # loss = K.mean(model.output[:, 0])
     loss = losses.binary_crossentropy(model.output[:, 0], 1)
@@ -10,7 +11,9 @@ def fgsm(model, inp,  inp_emb, pad_idx, pad_len, e, step_size=0.1):
     grads /= (K.sqrt(K.mean(K.square(grads))) + 1e-8)
 
     mask = np.zeros(model.layers[1].output.shape[1:]) # embedding layer output shape
-    mask[pad_idx:pad_idx+pad_len] = 1
+    for bound in modifiable_range_list:
+        mask[bound[0] : bound[1]] = 1
+        # mask[pad_idx:pad_idx+pad_len] = 1
     origin_grads = grads
     grads *= K.constant(mask) # 只保留末尾附加字节对应的梯度
 
@@ -28,7 +31,7 @@ def fgsm(model, inp,  inp_emb, pad_idx, pad_len, e, step_size=0.1):
         # adv += 0.1*mask
         #print (e, loss_val, end='\r')
         # if loss_val >= 0.9:
-        if model_output <= 0.5:
+        if model_output <= thres:
             break
 
     # 用K近邻来寻找嵌入向量对应的字节
@@ -36,15 +39,17 @@ def fgsm(model, inp,  inp_emb, pad_idx, pad_len, e, step_size=0.1):
     emb_weight = emb_layer.get_weights()[0];  # shape: (257, 8)
     neigh = NearestNeighbors(1)
     neigh.fit(emb_weight)
-    out = emb_search(inp, adv_emb[0], pad_idx, pad_len, neigh)
+    out = emb_search(inp, adv_emb[0], modifiable_range_list, neigh)
 
     return out, g, loss_val
 
+
 # 用K近邻来寻找嵌入向量对应的字节
-def emb_search(org, adv, pad_idx, pad_len, neigh):
+def emb_search(org, adv, modifiable_range_list, neigh):
     out = org.copy()
-    for idx in range(pad_idx, pad_idx+pad_len):
-        target = adv[idx].reshape(1, -1)
-        best_idx = neigh.kneighbors(target, 1, False)[0][0]
-        out[0][idx] = best_idx
+    for bound in modifiable_range_list:
+        for idx in range(*bound):
+            target = adv[idx].reshape(1, -1)
+            best_idx = neigh.kneighbors(target, 1, False)[0][0]
+            out[0][idx] = best_idx
     return out

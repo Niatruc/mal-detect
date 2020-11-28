@@ -1,7 +1,7 @@
 from keras import backend as K, losses
 import numpy as np
 
-def evade_at_test_time(model, inp, inp_emb, pad_idx, pad_len, embs, step_size=0.1, stop_threshold=0.5, rounds=10):
+def evade_at_test_time(model, inp, inp_emb, pad_idx, pad_len, embs, modifiable_range_list, step_size=0.1, stop_threshold=0.5, rounds=10):
     adv = inp.copy()
     adv_emb = inp_emb.copy()
 
