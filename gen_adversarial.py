@@ -32,7 +32,7 @@ def gen_adv_samples(
         predict_func = functools.partial(model.predict, batch_size=batch_size)
     else:   # 使用多线程(发现无法提速)
         def predict_func(binaries_list):
-            res1 = model.predict(binaries_list, batch_size=batch_size)
+            # res1 = model.predict(binaries_list, batch_size=batch_size)
             batch_cnt = np.ceil(len(binaries_list) // batch_size)
             res = model.predict_generator(
                 generator=utils.ExeContentSequence(binaries_list, [1] * len(binaries_list), batch_size),
