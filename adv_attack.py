@@ -24,7 +24,7 @@ parser.add_argument('--de_individual_cnt', type=int, default=32,    help="de_ind
 parser.add_argument('--de_change_range', type=int, default=0b1111,    help="de_change_range")
 parser.add_argument('--use_kick_mutation', type=bool, default=True,    help="use_kick_mutation")
 
-TEST = True
+TEST = False
 
 if __name__ == '__main__' and not TEST:
     args = parser.parse_args()
