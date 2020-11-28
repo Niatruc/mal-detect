@@ -16,7 +16,7 @@ def gen_adv_samples(
         model, fn_list,
         strategy=0, changed_bytes_cnt=16, thres=0.5, batch_size=10, workers=1,
         *, step_size=0.1, max_iter=1000, individual_cnt=10,
-        change_range=0b1111, use_kick_mutation=True, check_convergence_per_iter=100
+        change_range=0b1111, use_kick_mutation=True, check_convergence_per_iter=100, exact_len=True
 ):
     max_len = int(model.input.shape[1])  # 模型接受的输入数据的长度
 
@@ -50,30 +50,34 @@ def gen_adv_samples(
         # loss, pred = float('nan'), float('nan')
 
         if strategy == 0 or strategy == 1:
-            pad_len = max(min(changed_bytes_cnt, max_len - pad_idx), 0)
-            if pad_len > 0:
-                if change_range == 0:
-                    modifiable_range_list = [(pad_idx, pad_idx + pad_len)]
-                else:
-                    modifiable_range_list = exe_util.find_pe_modifiable_range(fn, use_range=change_range)
-                    cbc = changed_bytes_cnt
-                    mrl = []
-                    for bound in modifiable_range_list:
-                        bound_len = bound[1] - bound[0]
-                        if cbc < bound_len:
-                            mrl.append((bound[0], bound[0] + cbc))
-                            cbc = 0
-                            break
-                        else:
-                            mrl.append(bound)
-                            cbc -= bound_len
-                    modifiable_range_list = mrl
-                for bound in modifiable_range_list:
-                    bound_len = bound[1] - bound[0]
-                    noise = np.zeros(bound_len)
-                    noise = np.random.randint(0, 255, bound_len)
-                    inp[0][bound[0]: bound[1]] = noise
+            exact_len = True
 
+        pad_len = max(min(changed_bytes_cnt, max_len - pad_idx), 0)
+        modifiable_range_list = []
+        if change_range == 0 and pad_len > 0:
+            modifiable_range_list = [(pad_idx, pad_idx + pad_len)]
+        elif exact_len: # 从可改的第一个字节开始到第changed_bytes_cnt个字节结束
+            modifiable_range_list = exe_util.find_pe_modifiable_range(fn, use_range=change_range)
+            cbc = changed_bytes_cnt
+            mrl = []
+            for bound in modifiable_range_list:
+                bound_len = bound[1] - bound[0]
+                if cbc < bound_len:
+                    mrl.append((bound[0], bound[0] + cbc))
+                    cbc = 0
+                    break
+                else:
+                    mrl.append(bound)
+                    cbc -= bound_len
+            modifiable_range_list = mrl
+        for bound in modifiable_range_list:
+            bound_len = bound[1] - bound[0]
+            noise = np.zeros(bound_len)
+            noise = np.random.randint(0, 255, bound_len)
+            inp[0][bound[0]: bound[1]] = noise
+
+        if strategy == 0 or strategy == 1:
+            if len(modifiable_range_list) > 0:
                 # 填充字节
                 # noise = np.zeros(pad_len)
                 # noise = np.random.randint(0, 255, pad_len)
@@ -91,12 +95,13 @@ def gen_adv_samples(
         elif strategy == 2:
             # de_attack(model, inp, DOS_HEADER_MODIFY_RANGE[0], change_byte_cnt=4)
             # de_algo = de.DE(inp, model.predict, dim_cnt=2, change_byte_cnt=32, individual_cnt=32 * 2, bounds=[[(pad_idx, pad_idx + 32)], [(0, 255)]])
-            modifiable_range_list = exe_util.find_pe_modifiable_range(fn, use_range=change_range)
+            # modifiable_range_list = exe_util.find_pe_modifiable_range(fn, use_range=change_range)
             de_algo = de.DE(inp, predict_func, dim_cnt=2, changed_bytes_cnt=changed_bytes_cnt, individual_cnt=individual_cnt, bounds=[
                     modifiable_range_list,
                     [(0, 255)]
                 ], F=0.2, kick_units_rate=1.,
                 check_convergence_per_iter=check_convergence_per_iter,
+                range_len_as_changed_bytes_len=exact_len,
             )
             adv, iter_sum = de_algo.update(iter_cnt=max_iter, use_kick_mutation=use_kick_mutation)
             final_adv = adv[0]

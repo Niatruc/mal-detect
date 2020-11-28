@@ -9,7 +9,7 @@ import file_util, gen_adversarial, utils
 parser = argparse.ArgumentParser(description='Malconv-keras adversarial attack')
 parser.add_argument('--limit', type=float, default=0., help="limit gpu memory percentage")
 parser.add_argument('--strategy', type=int, default=2, help="Strategy (0/1: fgsm; 2: de")
-parser.add_argument('--gpu_num', type=str, default=0, help="Choose a gpu")
+parser.add_argument('--gpu_num', type=str, default='0', help="Choose a gpu")
 parser.add_argument('--workers_cnt', type=int, default=0, help="Threads count")
 parser.add_argument('--model_path', type=str, default='../../ember/malconv/malconv.h5',    help="MalConv's path")
 parser.add_argument('--save_path', type=str, default='../model_test_result/attack_result.csv',    help="Path for saving attack result")
@@ -24,7 +24,7 @@ parser.add_argument('--de_individual_cnt', type=int, default=32,    help="de_ind
 parser.add_argument('--de_change_range', type=int, default=0b1111,    help="de_change_range")
 parser.add_argument('--use_kick_mutation', type=bool, default=True,    help="use_kick_mutation")
 
-TEST = False
+TEST = True
 
 if __name__ == '__main__' and not TEST:
     args = parser.parse_args()
@@ -73,17 +73,19 @@ if TEST:
         malconv, [
             # '/home/bohan/res/ml_dataset/virusshare/VirusShare_24580df24fb34966023b5dd6b37b1a3c',
             '/home/bohan/res/ml_dataset/virusshare/VirusShare_3c8c59d25ecb9bd91e7b933113578e40',
-            '/home/bohan/res/ml_dataset/virusshare/VirusShare_3a4fac1796f0816d7567abb9bf0a9440',
-            '/home/bohan/res/ml_dataset/virusshare/VirusShare_01cd58ba6e5f9d1e1f718dfba7478d30',
+            '/home/bohan/res/ml_dataset/virusshare/VirusShare_3c8c59d25ecb9bd91e7b933113578e40',
+            '/home/bohan/res/ml_dataset/virusshare/VirusShare_3c8c59d25ecb9bd91e7b933113578e40',
+            # '/home/bohan/res/ml_dataset/virusshare/VirusShare_3a4fac1796f0816d7567abb9bf0a9440',
+            # '/home/bohan/res/ml_dataset/virusshare/VirusShare_01cd58ba6e5f9d1e1f718dfba7478d30',
             # '/home/bohan/res/ml_dataset/Malware_Detection_PE-Based_Analysis_Using_Deep_Learning_Algorithm_Dataset_old/Dataset/Virus/Virus train/Locker/VirusShare_13c63e0329202076f45796dba3ed6b8f.exe'
         ],
-        strategy=0,
+        strategy=2,
         workers=1,
-        changed_bytes_cnt=8,
+        changed_bytes_cnt=128,
         max_iter=5000,
-        individual_cnt=32,
+        individual_cnt=128,
         batch_size=32,
-        change_range=0b0001,
+        change_range=0b0111,
         use_kick_mutation=True,
         check_convergence_per_iter=100,
     )

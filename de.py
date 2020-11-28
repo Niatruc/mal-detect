@@ -103,7 +103,7 @@ class DE:
                     pseudo_mutation[i] = random.randint(0, self.each_dim_bounds_total_len_list[i] - 1)
             self.vector_after_mutation = self.__pseudo_vector_to_vector(pseudo_mutation)
 
-    def __init__(self, inp, target_func, dim_cnt, changed_bytes_cnt, individual_cnt, bounds, F = 0.5, CR = 0.8, check_convergence_per_iter=100, kick_units_rate=0.5):
+    def __init__(self, inp, target_func, dim_cnt, changed_bytes_cnt, individual_cnt, bounds, F = 0.5, CR = 0.8, check_convergence_per_iter=100, kick_units_rate=0.5, range_len_as_changed_bytes_len=True):
         '''
         :param inp: 输入样本
         :param target_func: 目标优化参数
