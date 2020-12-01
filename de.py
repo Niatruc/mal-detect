@@ -91,23 +91,30 @@ class DE:
             for i, dim_value in enumerate(pseudo_mutation):
                 value = int(dim_value) # 先转成整数再做边界检查
                 if len(self.bounds[i]) <= 1:
-                    if self.check_ith_dim_in_bound(i, value):  # 边界检查
-                        pseudo_mutation[i] = value
-                    else:
-                        pseudo_mutation[i] = self.get_rand_value_for_ith_dim(i)
+                    bound = self.bounds[i][0]
+                    bound_len = bound[1] - bound[0]
+                    pseudo_mutation[i] = bound[0] + ((value - bound[0]) % bound_len)
+                    # if self.check_ith_dim_in_bound(i, value):  # 边界检查
+                    #     pseudo_mutation[i] = value
+                    # else:
+                    #     pseudo_mutation[i] = self.get_rand_value_for_ith_dim(i)
                     continue
 
-                if value in range(0, self.each_dim_bounds_total_len_list[i]): # 边界检查
-                    pseudo_mutation[i] = value
-                else:
-                    pseudo_mutation[i] = random.randint(0, self.each_dim_bounds_total_len_list[i] - 1)
+                # 注意这里的value是伪向量的维度值
+                pseudo_mutation[i] = value % self.each_dim_bounds_total_len_list[i]
+                # if value in range(0, self.each_dim_bounds_total_len_list[i]): # 边界检查
+                #     pseudo_mutation[i] = value
+                # else:
+                #     pseudo_mutation[i] = random.randint(0, self.each_dim_bounds_total_len_list[i] - 1)
             self.vector_after_mutation = self.__pseudo_vector_to_vector(pseudo_mutation)
 
-    def __init__(self, inp, target_func, dim_cnt, changed_bytes_cnt, individual_cnt, bounds, F = 0.5, CR = 0.8, check_convergence_per_iter=100, kick_units_rate=0.5, range_len_as_changed_bytes_len=True):
+    def __init__(
+            self, inp, target_func, individual_dim_cnt, changed_bytes_cnt, individual_cnt, bounds, apply_individual_to_adv_func,
+            F = 0.5, CR = 0.8, check_convergence_per_iter=100, kick_units_rate=0.5, range_len_as_changed_bytes_len=True):
         '''
         :param inp: 输入样本
         :param target_func: 目标优化参数
-        :param dim_cnt: 值为2,表示每一个要改的字节包含两个信息:字节位置和更改后的值
+        :param individual_dim_cnt:
         :param changed_bytes_cnt: 要修改的字节的数量
         :param individual_cnt: DE算法中的个体数量(每个个体unit由所有要修改的字节的信息组成)
         :param bounds: 每一个要改的字节包含两个信息:字节位置和更改后的值. bounds包含的两个数组分别是这两个值对应的取值范围,如[[(i1_a1, i1_b1), (i1_a2, i1_b2)], [(i2_a1, i2_b1)]]
@@ -117,9 +124,10 @@ class DE:
         self.adv = inp.copy()
 
         self.target_func = target_func
-        self.dim_cnt = dim_cnt  # 维度
+        self.dim_cnt = individual_dim_cnt  # 维度
         self.individual_cnt = individual_cnt  # 个体个数
-        self.bounds = bounds * changed_bytes_cnt # [[(i1_a1, i1_b1), (i1_a2, i1_b2)], [(i2_a1, i2_b1)], ...]
+        self.bounds = bounds # [[(i1_a1, i1_b1), (i1_a2, i1_b2)], [(i2_a1, i2_b1)], ...]
+        self.diff_adv = apply_individual_to_adv_func
 
         # 计算每一维的取值区间总长度. 有一些维可能有多个不连续的取值区间, 需要将各区间长度相加.
         self.each_dim_bounds_total_len_list = []
@@ -129,7 +137,7 @@ class DE:
                 dim_bounds = [(0, 0)] + dim_bounds
                 each_dim_bound_total_len = reduce(lambda x, y: (0, (x[1] - x[0]) + (y[1] - y[0])), dim_bounds)[1]
                 dim_bounds_acc_len = [reduce(lambda x, y: (0, (x[1] - x[0]) + (y[1] - y[0])), dim_bounds[0:i + 1])[1]
-                                      for i in range(len(dim_bounds))]
+                                      for i in range(len(dim_bounds))] # 一个列表,记录从第0个到第i个区间的累计长度
                 dim_bounds_acc_len.pop(0)
 
             else:
@@ -150,7 +158,7 @@ class DE:
 
         # 对种群进行初始化
         self.unit_list = [self.Unit(
-            self.bounds, dim_cnt * changed_bytes_cnt, self.each_dim_bounds_total_len_list, self.each_dim_bounds_acc_len_lists
+            self.bounds, individual_dim_cnt, self.each_dim_bounds_total_len_list, self.each_dim_bounds_acc_len_lists
         ) for i in range(self.individual_cnt)]
 
         self.calc_best_fitness()
@@ -160,7 +168,7 @@ class DE:
     def calc_best_fitness(self):
         all_unit_advs = []
         for unit in self.unit_list:
-            adv = self.diff_adv(unit.vector)
+            adv = self.diff_adv(self.adv, unit.vector)
             all_unit_advs.append(adv)
         fitness_values = self.target_func(np.array(all_unit_advs))
 
@@ -210,23 +218,23 @@ class DE:
                 self.best_unit = unit
 
     # 计算修改后的adv
-    def diff_adv(self, diff_vector):
-        adv = self.adv.copy()[0]
-
-        i = 0
-        while i < len(diff_vector):
-            pos = int(diff_vector[i])
-            val = int(diff_vector[i + 1])
-            adv[pos] = val
-            i += 2
-        return adv
+    # def diff_adv(self, diff_vector):
+    #     adv = self.adv.copy()[0]
+    #
+    #     i = 0
+    #     while i < len(diff_vector):
+    #         pos = int(diff_vector[i])
+    #         val = int(diff_vector[i + 1])
+    #         adv[pos] = val
+    #         i += 2
+    #     return adv
 
     # 计算交叉后的新个体的适应值. 个体数很多的时候会算得很慢, 甚至卡在这里
     def calc_all_after_crossover(self):
         advs = []
         for unit in self.unit_list:
             diff_vector = unit.vector_after_crossover
-            adv = self.diff_adv(diff_vector)
+            adv = self.diff_adv(self.adv, diff_vector)
             advs.append(adv)
         scores = self.target_func(np.array(advs))
         return scores
@@ -254,6 +262,7 @@ class DE:
                         if is_convergent:
                             convergent_dims.append(i)
                     print("有收敛的维度为: ", convergent_dims)
+                    print("总收敛的维度数量为: ", len(convergent_dims))
 
                     if len(convergent_dims) == len(self.bounds) and not use_kick_mutation:
                         print("所有维度收敛")
@@ -264,9 +273,14 @@ class DE:
                         kick_units_cnt = int(self.individual_cnt * self.kick_units_rate)
                         unit_nums = list(range(self.individual_cnt))
                         random.shuffle(unit_nums)
+                        has_preserve_one = False
                         for unit_num in unit_nums[0:kick_units_cnt]:
                             unit = self.unit_list[unit_num]
                             if unit != self.best_unit:  # 原有的最佳个体不要改
+                                if kick_units_cnt >= 2 and not has_preserve_one: # 再保留至少一个留有优秀基因的个体
+                                    has_preserve_one = True
+                                    continue
+
                                 for dim in convergent_dims:
                                     unit.vector[dim] = unit.get_rand_value_for_ith_dim(dim)
                 self.calc_best_fitness()
@@ -287,6 +301,6 @@ class DE:
             if self.best_fitness_value < fitness_value_threshold:
                 break
 
-        final_adv = self.diff_adv(self.best_unit.vector)
+        final_adv = self.diff_adv(self.adv, self.best_unit.vector)
         return np.array([final_adv]), iter_sum
 

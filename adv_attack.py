@@ -23,7 +23,9 @@ parser.add_argument('--batch_size', type=int, default=10,    help="batch_size")
 parser.add_argument('--de_individual_cnt', type=int, default=32,    help="de_individual_cnt")
 parser.add_argument('--de_change_range', type=int, default=0b1111,    help="de_change_range")
 parser.add_argument('--use_kick_mutation', type=bool, default=True,    help="use_kick_mutation")
+parser.add_argument('--search_exact_len', type=bool, default=True,    help="search_exact_len")
 
+TEST = True
 TEST = False
 
 if __name__ == '__main__' and not TEST:
@@ -47,15 +49,16 @@ if __name__ == '__main__' and not TEST:
         print("开始操作: %d: %s" % (index, virus_path))
 
         _, test_info = gen_adversarial.gen_adv_samples(malconv, [virus_path],
-            workers=args.workers_cnt,
-            strategy=args.strategy,
-            changed_bytes_cnt=args.changed_bytes_cnt,
-            max_iter=args.max_iter,
-            batch_size=args.batch_size,
-            individual_cnt=args.de_individual_cnt,
-            change_range=args.de_change_range,
-            use_kick_mutation=args.use_kick_mutation
-        )
+                                                       workers=args.workers_cnt,
+                                                       strategy=args.strategy,
+                                                       changed_bytes_cnt=args.changed_bytes_cnt,
+                                                       max_iter=args.max_iter,
+                                                       batch_size=args.batch_size,
+                                                       de_individual_cnt=args.de_individual_cnt,
+                                                       change_range=args.de_change_range,
+                                                       use_kick_mutation=args.use_kick_mutation,
+                                                       exact_len=args.search_exact_len,
+                                                       )
         attack_result = attack_result.append({
             'file_name': row.file_name,
             'org_score': row.predict_score,
@@ -73,8 +76,8 @@ if TEST:
         malconv, [
             # '/home/bohan/res/ml_dataset/virusshare/VirusShare_24580df24fb34966023b5dd6b37b1a3c',
             '/home/bohan/res/ml_dataset/virusshare/VirusShare_3c8c59d25ecb9bd91e7b933113578e40',
-            '/home/bohan/res/ml_dataset/virusshare/VirusShare_3c8c59d25ecb9bd91e7b933113578e40',
-            '/home/bohan/res/ml_dataset/virusshare/VirusShare_3c8c59d25ecb9bd91e7b933113578e40',
+            # '/home/bohan/res/ml_dataset/virusshare/VirusShare_3c8c59d25ecb9bd91e7b933113578e40',
+            # '/home/bohan/res/ml_dataset/virusshare/VirusShare_3c8c59d25ecb9bd91e7b933113578e40',
             # '/home/bohan/res/ml_dataset/virusshare/VirusShare_3a4fac1796f0816d7567abb9bf0a9440',
             # '/home/bohan/res/ml_dataset/virusshare/VirusShare_01cd58ba6e5f9d1e1f718dfba7478d30',
             # '/home/bohan/res/ml_dataset/Malware_Detection_PE-Based_Analysis_Using_Deep_Learning_Algorithm_Dataset_old/Dataset/Virus/Virus train/Locker/VirusShare_13c63e0329202076f45796dba3ed6b8f.exe'
@@ -82,10 +85,13 @@ if TEST:
         strategy=2,
         workers=1,
         changed_bytes_cnt=128,
-        max_iter=5000,
-        individual_cnt=128,
+        max_iter=50000,
+        de_strategy=0,
+        de_F=1.,
+        de_individual_cnt=10,
         batch_size=32,
         change_range=0b0111,
         use_kick_mutation=True,
+        kick_units_rate=1.,
         check_convergence_per_iter=100,
     )

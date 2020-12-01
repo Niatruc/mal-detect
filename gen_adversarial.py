@@ -15,8 +15,9 @@ import functools
 def gen_adv_samples(
         model, fn_list,
         strategy=0, changed_bytes_cnt=16, thres=0.5, batch_size=10, workers=1,
-        *, step_size=0.1, max_iter=1000, individual_cnt=10,
-        change_range=0b1111, use_kick_mutation=True, check_convergence_per_iter=100, exact_len=True
+        *, step_size=0.1, max_iter=1000,
+        de_F=0.2, de_individual_cnt=10,
+        change_range=0b1111, use_kick_mutation=True, kick_units_rate=1., check_convergence_per_iter=100, exact_len=True, de_strategy=0
 ):
     max_len = int(model.input.shape[1])  # 模型接受的输入数据的长度
 
@@ -70,11 +71,18 @@ def gen_adv_samples(
                     mrl.append(bound)
                     cbc -= bound_len
             modifiable_range_list = mrl
+
+        modifiable_bytes_pos_list = [] # 存储所有可改字节的位置
         for bound in modifiable_range_list:
             bound_len = bound[1] - bound[0]
             noise = np.zeros(bound_len)
             noise = np.random.randint(0, 255, bound_len)
             inp[0][bound[0]: bound[1]] = noise
+
+            for pos in range(*bound):
+                modifiable_bytes_pos_list.append(pos)
+        modifiable_bytes_pos_ary = np.array(modifiable_bytes_pos_list)
+
 
         if strategy == 0 or strategy == 1:
             if len(modifiable_range_list) > 0:
@@ -96,12 +104,36 @@ def gen_adv_samples(
             # de_attack(model, inp, DOS_HEADER_MODIFY_RANGE[0], change_byte_cnt=4)
             # de_algo = de.DE(inp, model.predict, dim_cnt=2, change_byte_cnt=32, individual_cnt=32 * 2, bounds=[[(pad_idx, pad_idx + 32)], [(0, 255)]])
             # modifiable_range_list = exe_util.find_pe_modifiable_range(fn, use_range=change_range)
-            de_algo = de.DE(inp, predict_func, dim_cnt=2, changed_bytes_cnt=changed_bytes_cnt, individual_cnt=individual_cnt, bounds=[
-                    modifiable_range_list,
-                    [(0, 255)]
-                ], F=0.2, kick_units_rate=1.,
+
+            # diff_adv函数用于计算修改后的adv
+            if de_strategy == 0:
+                de_bounds = [[(0, 256)]] * changed_bytes_cnt
+                individual_dim_cnt = changed_bytes_cnt
+                def diff_adv(adv, diff_vector):
+                    adv1 = adv.copy()[0]
+                    for i in range(changed_bytes_cnt):
+                        val = int(diff_vector[i])
+                        pos = modifiable_bytes_pos_ary[i]
+                        adv1[pos] = val
+                    return adv1
+            elif de_strategy == 1:
+                def diff_adv(adv, diff_vector):
+                    adv1 = adv.copy()[0]
+
+                    i = 0
+                    while i < len(diff_vector):
+                        pos = int(diff_vector[i])
+                        val = int(diff_vector[i + 1])
+                        adv1[pos] = val
+                        i += 2
+                    return adv1
+
+            de_algo = de.DE(
+                inp, predict_func, individual_dim_cnt=individual_dim_cnt, changed_bytes_cnt=changed_bytes_cnt, individual_cnt=de_individual_cnt,
+                bounds=de_bounds, F=de_F, kick_units_rate=kick_units_rate,
                 check_convergence_per_iter=check_convergence_per_iter,
                 range_len_as_changed_bytes_len=exact_len,
+                apply_individual_to_adv_func=diff_adv
             )
             adv, iter_sum = de_algo.update(iter_cnt=max_iter, use_kick_mutation=use_kick_mutation)
             final_adv = adv[0]
