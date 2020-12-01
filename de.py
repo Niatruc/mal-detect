@@ -264,11 +264,13 @@ class DE:
                     print("有收敛的维度为: ", convergent_dims)
                     print("总收敛的维度数量为: ", len(convergent_dims))
 
-                    if len(convergent_dims) == len(self.bounds) and not use_kick_mutation:
-                        print("所有维度收敛")
-                        break
+                    population_convergent = False
+                    if len(convergent_dims) == len(self.bounds): # and not use_kick_mutation:
+                        population_convergent = True
+                        print("所有维度收敛(种群收敛)")
+                        # break
 
-                    if use_kick_mutation:
+                    if use_kick_mutation and population_convergent:
                         print("进行刺激性的突变")
                         kick_units_cnt = int(self.individual_cnt * self.kick_units_rate)
                         unit_nums = list(range(self.individual_cnt))
@@ -277,9 +279,9 @@ class DE:
                         for unit_num in unit_nums[0:kick_units_cnt]:
                             unit = self.unit_list[unit_num]
                             if unit != self.best_unit:  # 原有的最佳个体不要改
-                                if kick_units_cnt >= 2 and not has_preserve_one: # 再保留至少一个留有优秀基因的个体
-                                    has_preserve_one = True
-                                    continue
+                                # if kick_units_cnt >= 2 and not has_preserve_one: # 再保留至少一个留有优秀基因的个体
+                                #     has_preserve_one = True
+                                #     continue
 
                                 for dim in convergent_dims:
                                     unit.vector[dim] = unit.get_rand_value_for_ith_dim(dim)
