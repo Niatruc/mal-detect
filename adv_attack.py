@@ -76,8 +76,8 @@ if TEST:
         malconv, [
             # '/home/bohan/res/ml_dataset/virusshare/VirusShare_24580df24fb34966023b5dd6b37b1a3c',
             # '/home/bohan/res/ml_dataset/virusshare/VirusShare_3c8c59d25ecb9bd91e7b933113578e40',
-            '/home/bohan/res/ml_dataset/virusshare/VirusShare_30630a6d799d51a753ba04227649dce0',
-            # '/home/bohan/res/ml_dataset/virusshare/VirusShare_3c8c59d25ecb9bd91e7b933113578e40',
+            # '/home/bohan/res/ml_dataset/virusshare/VirusShare_5a76aa2603e49a7dd6bac0ce743d25c0',
+            '/home/bohan/res/ml_dataset/virusshare/VirusShare_1e4997bc0fced91b25632c3151f91710',
             # '/home/bohan/res/ml_dataset/virusshare/VirusShare_3a4fac1796f0816d7567abb9bf0a9440',
             # '/home/bohan/res/ml_dataset/virusshare/VirusShare_01cd58ba6e5f9d1e1f718dfba7478d30',
             # '/home/bohan/res/ml_dataset/Malware_Detection_PE-Based_Analysis_Using_Deep_Learning_Algorithm_Dataset_old/Dataset/Virus/Virus train/Locker/VirusShare_13c63e0329202076f45796dba3ed6b8f.exe'
@@ -88,7 +88,7 @@ if TEST:
         max_iter=50000,
         de_strategy=0,
         de_F=1.,
-        de_individual_cnt=10,
+        de_individual_cnt=20,
         batch_size=32,
         change_range=0b0111,
         use_kick_mutation=True,

@@ -210,10 +210,10 @@ class DE:
         new_fitness_values = self.calc_all_after_crossover()
         for i, unit in enumerate(self.unit_list): # 对每一个个体, 对比各自的交叉后值, 作优胜劣汰
             new_fitness_value = new_fitness_values[i][0]
-            if new_fitness_value < unit.fitness_value: # 若新的个体的适应值更小,则更新个体
+            if new_fitness_value <= unit.fitness_value: # 若新的个体的适应值更小,则更新个体
                 unit.fitness_value = new_fitness_value
                 unit.vector = unit.vector_after_crossover.copy()
-            if new_fitness_value < self.best_fitness_value: # 顺道更新全局最优个体
+            if new_fitness_value <= self.best_fitness_value: # 顺道更新全局最优个体
                 self.best_fitness_value = new_fitness_value
                 self.best_unit = unit
 
