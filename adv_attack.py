@@ -25,8 +25,8 @@ parser.add_argument('--de_change_range', type=int, default=0b1111,    help="de_c
 parser.add_argument('--use_kick_mutation', type=bool, default=True,    help="use_kick_mutation")
 parser.add_argument('--search_exact_len', type=bool, default=True,    help="search_exact_len")
 
-TEST = True
 TEST = False
+TEST = True
 
 if __name__ == '__main__' and not TEST:
     args = parser.parse_args()
@@ -75,8 +75,8 @@ if TEST:
     adv_samples, log = gen_adversarial.gen_adv_samples(
         malconv, [
             # '/home/bohan/res/ml_dataset/virusshare/VirusShare_24580df24fb34966023b5dd6b37b1a3c',
-            '/home/bohan/res/ml_dataset/virusshare/VirusShare_3c8c59d25ecb9bd91e7b933113578e40',
             # '/home/bohan/res/ml_dataset/virusshare/VirusShare_3c8c59d25ecb9bd91e7b933113578e40',
+            '/home/bohan/res/ml_dataset/virusshare/VirusShare_30630a6d799d51a753ba04227649dce0',
             # '/home/bohan/res/ml_dataset/virusshare/VirusShare_3c8c59d25ecb9bd91e7b933113578e40',
             # '/home/bohan/res/ml_dataset/virusshare/VirusShare_3a4fac1796f0816d7567abb9bf0a9440',
             # '/home/bohan/res/ml_dataset/virusshare/VirusShare_01cd58ba6e5f9d1e1f718dfba7478d30',
@@ -84,7 +84,7 @@ if TEST:
         ],
         strategy=2,
         workers=1,
-        changed_bytes_cnt=128,
+        changed_bytes_cnt=256,
         max_iter=50000,
         de_strategy=0,
         de_F=1.,

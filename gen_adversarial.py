@@ -82,6 +82,7 @@ def gen_adv_samples(
             for pos in range(*bound):
                 modifiable_bytes_pos_list.append(pos)
         modifiable_bytes_pos_ary = np.array(modifiable_bytes_pos_list)
+        changed_bytes_cnt = len(modifiable_bytes_pos_ary) # 可改的长度可能不够,所以需要调整
 
 
         if strategy == 0 or strategy == 1:
