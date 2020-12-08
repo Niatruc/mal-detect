@@ -1,136 +1,123 @@
-import numpy  as np
+import numpy as np
 import math
 import random
 import os
+from functools import reduce
+import functools
 
 
-# Function
-def target_function():
-    return
+class GWO:
+    def __init__(self, inp, target_func, apply_individual_to_adv_func, dim_cnt, bounds, pack_size=15):
+        self.adv = inp.copy()
+        self.target_func = target_func
+        self.dim_cnt = dim_cnt
+        self.bounds = bounds
+        self.diff_adv = apply_individual_to_adv_func
+        self.pack_size = pack_size
 
+        # 计算每一维的取值区间总长度
+        self.each_dim_bounds_total_len_list = []
+        for dim_bounds in bounds:  # 注意dim_bounds是多个代表取值区间的元组构成的列表, 形如[(1, 2), (5, 7), (9, 12)]
+            dim_bounds = [(0, 0)] + dim_bounds
+            each_dim_bound_total_len = reduce(lambda x, y: (0, (x[1] - x[0]) + (y[1] - y[0])), dim_bounds)[1]
+            self.each_dim_bounds_total_len_list.append(each_dim_bound_total_len)
+        self.each_dim_bounds_total_len_ary = np.array(self.each_dim_bounds_total_len_list)
 
-# Function: Initialize Variables
-def initial_position(pack_size=5, min_values=[-5, -5], max_values=[5, 5], target_function=target_function):
-    position = np.zeros((pack_size, len(min_values) + 1))
-    for i in range(0, pack_size):
-        for j in range(0, len(min_values)):
-            position[i, j] = random.uniform(min_values[j], max_values[j])
-        position[i, -1] = target_function(position[i, 0:position.shape[1] - 1])
-    return position
+        self.alpha = self.init_wolves_position(1)[0]
+        self.beta = self.init_wolves_position(1)[0]
+        self.delta = self.init_wolves_position(1)[0]
+        self.omigas = self.init_wolves_position(self.pack_size)  # 每个个体向量的最后一个元素保存适应值
 
+    def init_wolves_position(self, wolves_cnt):
+        wolf_position = np.zeros((wolves_cnt, self.dim_cnt + 1))
+        for i in range(0, wolves_cnt):
+            for j in range(self.dim_cnt):
+                bound_len = self.each_dim_bounds_total_len_ary[j]
+                wolf_position[i, j] = random.randint(0, bound_len)
+        advs = np.array([self.diff_adv(self.adv, wolf_position[0: -1]) for wolf_position in wolf_position])
+        fitness_values = self.target_func(advs)
+        wolf_position[:, -1] = fitness_values.transpose() # 每个个体向量的最后一个元素保存适应值
+        return wolf_position
 
-# Function: Initialize Alpha
-def alpha_position(dimension=2, target_function=target_function):
-    alpha = np.zeros((1, dimension + 1))
-    for j in range(0, dimension):
-        alpha[0, j] = 0.0
-    alpha[0, -1] = target_function(alpha[0, 0:alpha.shape[1] - 1])
-    return alpha
+    # 与其余狼对比,并更新头三头狼
+    def update_pack(self):
+        updated_omigas_first_three = self.omigas[self.omigas[:, -1].argsort()]
+        for omiga in updated_omigas_first_three:
+            if (omiga[-1] < self.alpha[-1]):
+                self.alpha = np.copy(omiga)
+            if (omiga[-1] > self.alpha[-1] and omiga[-1] < self.beta[-1]):
+                self.beta = np.copy(omiga)
+            if (omiga[-1] > self.alpha[-1] and omiga[-1] > self.beta[-1] and omiga[-1] < self.delta[-1]):
+                self.delta = np.copy(omiga)
 
+    # 求wolf_pos狼向target_wolf_pos移近之后的位置向量
+    def calc_move_component_vector(self, wolf_pos, target_wolf_pos, a_linear_component):
+        # r1 = np.random.rand()    # n(self.dim_cnt)
+        # r2 = np.random.rand()    # n(self.dim_cnt)
+        # r1 = int.from_bytes(os.urandom(8), byteorder="big") / ((1 << 64) - 1)
+        # r2 = int.from_bytes(os.urandom(8), byteorder="big") / ((1 << 64) - 1)
+        r1 = np.array([int.from_bytes(os.urandom(8), byteorder="big") / ((1 << 64) - 1) for _ in range(self.dim_cnt)])
+        r2 = np.array([int.from_bytes(os.urandom(8), byteorder="big") / ((1 << 64) - 1) for _ in range(self.dim_cnt)])
+        A = 2 * a_linear_component * r1 - a_linear_component
+        C = 2 * r2
+        D = C * target_wolf_pos[0 : -1] - wolf_pos[0 : -1] # omiga狼向目标狼移动的方向向量
+        X = target_wolf_pos[0 : -1] - A * D
+        return X
 
-# Function: Initialize Beta
-def beta_position(dimension=2, target_function=target_function):
-    beta = np.zeros((1, dimension + 1))
-    for j in range(0, dimension):
-        beta[0, j] = 0.0
-    beta[0, -1] = target_function(beta[0, 0:beta.shape[1] - 1])
-    return beta
+    # 更新底层omiga狼的位置
+    def update_position(self,a_linear_component=2):
+        for omiga in self.omigas:  # 对每一头底层狼进行操作
+            X1 = self.calc_move_component_vector(omiga, self.alpha, a_linear_component)
+            X2 = self.calc_move_component_vector(omiga, self.beta, a_linear_component)
+            X3 = self.calc_move_component_vector(omiga, self.delta, a_linear_component)
 
+            # omiga[0 : -1] = ((X1 + X2 + X3) / 3) % self.each_dim_bounds_total_len_ary
+            omiga[0 : -1] = ((X1 + X2 + X3) / 3).clip(np.zeros(self.dim_cnt), self.each_dim_bounds_total_len_ary)
+            adv = self.diff_adv(self.adv, omiga[0 : -1])
+            fitness_val = self.target_func(np.array([adv]))[0][0]
+            omiga[-1] = fitness_val
+        print(self.omigas[:, -1])
 
-# Function: Initialize Delta
-def delta_position(dimension=2, target_function=target_function):
-    delta = np.zeros((1, dimension + 1))
-    for j in range(0, dimension):
-        delta[0, j] = 0.0
-    delta[0, -1] = target_function(delta[0, 0:delta.shape[1] - 1])
-    return delta
-
-
-# Function: Updtade Pack by Fitness
-def update_pack(position, alpha, beta, delta):
-    updated_position = np.copy(position)
-    for i in range(0, position.shape[0]):
-        if (updated_position[i, -1] < alpha[0, -1]):
-            alpha[0, :] = np.copy(updated_position[i, :])
-        if (updated_position[i, -1] > alpha[0, -1] and updated_position[i, -1] < beta[0, -1]):
-            beta[0, :] = np.copy(updated_position[i, :])
-        if (updated_position[i, -1] > alpha[0, -1] and updated_position[i, -1] > beta[0, -1] and updated_position[
-            i, -1] < delta[0, -1]):
-            delta[0, :] = np.copy(updated_position[i, :])
-    return alpha, beta, delta
-
-
-# Function: Updtade Position
-def update_position(position, alpha, beta, delta, a_linear_component=2, min_values=[-5, -5], max_values=[5, 5],
-                    target_function=target_function):
-    updated_position = np.copy(position)
-    for i in range(0, updated_position.shape[0]):
-        for j in range(0, len(min_values)):
-            r1_alpha = int.from_bytes(os.urandom(8), byteorder="big") / ((1 << 64) - 1)
-            r2_alpha = int.from_bytes(os.urandom(8), byteorder="big") / ((1 << 64) - 1)
-            a_alpha = 2 * a_linear_component * r1_alpha - a_linear_component
-            c_alpha = 2 * r2_alpha
-            distance_alpha = abs(c_alpha * alpha[0, j] - position[i, j])
-            x1 = alpha[0, j] - a_alpha * distance_alpha
-            r1_beta = int.from_bytes(os.urandom(8), byteorder="big") / ((1 << 64) - 1)
-            r2_beta = int.from_bytes(os.urandom(8), byteorder="big") / ((1 << 64) - 1)
-            a_beta = 2 * a_linear_component * r1_beta - a_linear_component
-            c_beta = 2 * r2_beta
-            distance_beta = abs(c_beta * beta[0, j] - position[i, j])
-            x2 = beta[0, j] - a_beta * distance_beta
-            r1_delta = int.from_bytes(os.urandom(8), byteorder="big") / ((1 << 64) - 1)
-            r2_delta = int.from_bytes(os.urandom(8), byteorder="big") / ((1 << 64) - 1)
-            a_delta = 2 * a_linear_component * r1_delta - a_linear_component
-            c_delta = 2 * r2_delta
-            distance_delta = abs(c_delta * delta[0, j] - position[i, j])
-            x3 = delta[0, j] - a_delta * distance_delta
-            updated_position[i, j] = np.clip(((x1 + x2 + x3) / 3), min_values[j], max_values[j])
-        updated_position[i, -1] = target_function(updated_position[i, 0:updated_position.shape[1] - 1])
-    return updated_position
-
-
-# GWO Function
-def grey_wolf_optimizer(pack_size=5, min_values=[-5, -5], max_values=[5, 5], iterations=50,
-                        target_function=target_function):
-    count = 0
-    alpha = alpha_position(dimension=len(min_values), target_function=target_function)
-    beta = beta_position(dimension=len(min_values), target_function=target_function)
-    delta = delta_position(dimension=len(min_values), target_function=target_function)
-    position = initial_position(pack_size=pack_size, min_values=min_values, max_values=max_values,
-                                target_function=target_function)
-    while (count <= iterations):
-        print("Iteration = ", count, " f(x) = ", alpha[-1])
-        a_linear_component = 2 - count * (2 / iterations)
-        alpha, beta, delta = update_pack(position, alpha, beta, delta)
-        position = update_position(position, alpha, beta, delta, a_linear_component=a_linear_component,
-                                   min_values=min_values, max_values=max_values, target_function=target_function)
-        count = count + 1
-    print(alpha[-1])
-    return alpha
+            # GWO Function
+    def optimize(self, iterations=50):
+        iter_cnt = 0
+        while (iter_cnt <= iterations):
+            print("Iteration = ", iter_cnt, " f(x) = ", self.alpha[-1])
+            a_linear_component = 2 - iter_cnt * (2 / iterations)
+            self.update_pack()
+            self.update_position(a_linear_component=a_linear_component)
+            iter_cnt = iter_cnt + 1
+        adv = self.diff_adv(self.adv, self.alpha[0: -1])
+        return np.array([adv]), self.alpha
 
 
 # ===============================================================================应用测试
 
-# Function to be Minimized (Six Hump Camel Back). Solution ->  f(x1, x2) = -1.0316; x1 = 0.0898, x2 = -0.7126 or x1 = -0.0898, x2 = 0.7126
+# # Function to be Minimized (Six Hump Camel Back). Solution ->  f(x1, x2) = -1.0316; x1 = 0.0898, x2 = -0.7126 or x1 = -0.0898, x2 = 0.7126
 def six_hump_camel_back(variables_values=[0, 0]):
     func_value = 4 * variables_values[0] ** 2 - 2.1 * variables_values[0] ** 4 + (1 / 3) * variables_values[0] ** 6 + \
                  variables_values[0] * variables_values[1] - 4 * variables_values[1] ** 2 + 4 * variables_values[1] ** 4
     return func_value
 
+def x_2(v):
+    return np.square(v).sum()
 
-gwo = grey_wolf_optimizer(pack_size=15, min_values=[-5, -5], max_values=[5, 5], iterations=100,
-                          target_function=six_hump_camel_back)
+def diff_adv(adv, diff_vec):
+    return diff_vec
 
+def target_func(variables_values=[[0, 0]]):
+    res = []
+    for v in variables_values:
+        fv = x_2(v - 5)
+        res.append([fv])
 
-# Function to be Minimized (Rosenbrocks Valley). Solution ->  f(x) = 0; xi = 1
-def rosenbrocks_valley(variables_values=[0, 0]):
-    func_value = 0
-    last_x = variables_values[0]
-    for i in range(1, len(variables_values)):
-        func_value = func_value + (100 * math.pow((variables_values[i] - math.pow(last_x, 2)), 2)) + math.pow(
-            1 - last_x, 2)
-    return func_value
+    return np.array(res)
 
-
-gwo = grey_wolf_optimizer(pack_size=100, min_values=[-5, -5], max_values=[5, 5], iterations=100,
-                          target_function=rosenbrocks_valley)
+# dim_cnt = 256
+# gwo_algo = GWO(
+#     np.array([]), target_func, diff_adv, dim_cnt=dim_cnt,
+#     bounds=[[(-5, 5)]] * dim_cnt, pack_size=15,
+# )
+#
+# adv, alpha = gwo_algo.optimize(iterations=1000)
+# print(alpha - np.array([5, 5, 0]))

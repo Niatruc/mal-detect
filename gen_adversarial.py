@@ -6,7 +6,7 @@ import tensorflow as tf
 from keras.models import load_model
 from keras import backend as K, losses
 from sklearn.neighbors import NearestNeighbors
-import utils, de, fgsm, evade_at_test_time, exe_util
+import utils, de_old, de, gwo, fgsm, evade_at_test_time, exe_util
 from file_util import preprocess
 import functools
 
@@ -16,8 +16,10 @@ def gen_adv_samples(
         model, fn_list,
         strategy=0, changed_bytes_cnt=16, thres=0.5, batch_size=10, workers=1,
         *, step_size=0.1, max_iter=1000,
-        de_F=0.2, de_individual_cnt=10,
-        change_range=0b1111, use_kick_mutation=True, kick_units_rate=1., check_convergence_per_iter=100, exact_len=True, de_strategy=0
+        de_F=0.2, individual_cnt=10,
+        change_range=0b1111, use_kick_mutation=True, kick_units_rate=1., check_convergence_per_iter=100, exact_len=True, sub_strategy=0,
+        save_units=False,save_units_path="units.dat", init_units=None,used_init_units_cnt=5,used_increasing_units=False,
+
 ):
     max_len = int(model.input.shape[1])  # 模型接受的输入数据的长度
 
@@ -44,6 +46,16 @@ def gen_adv_samples(
             )
             return res
 
+    units = np.array([])
+    if save_units_path and os.path.exists(save_units_path + '.npy'):
+        units = np.load(save_units_path + '.npy')
+
+    if used_increasing_units and len(units) > 0:
+        if init_units and len(init_units) > 0:
+            init_units = np.concatenate((units, init_units))
+        else:
+            init_units = units
+
     for e, fn in enumerate(fn_list):
         inp, len_list = preprocess([fn], max_len)
         pad_idx = len_list[0]   # 以文件的长度作为填充字节的起始下标
@@ -59,18 +71,19 @@ def gen_adv_samples(
             modifiable_range_list = [(pad_idx, pad_idx + pad_len)]
         elif exact_len: # 从可改的第一个字节开始到第changed_bytes_cnt个字节结束
             modifiable_range_list = exe_util.find_pe_modifiable_range(fn, use_range=change_range)
-            cbc = changed_bytes_cnt
-            mrl = []
-            for bound in modifiable_range_list:
-                bound_len = bound[1] - bound[0]
-                if cbc < bound_len:
-                    mrl.append((bound[0], bound[0] + cbc))
-                    cbc = 0
-                    break
-                else:
-                    mrl.append(bound)
-                    cbc -= bound_len
-            modifiable_range_list = mrl
+            if changed_bytes_cnt > 0:
+                cbc = changed_bytes_cnt
+                mrl = []
+                for bound in modifiable_range_list:
+                    bound_len = bound[1] - bound[0]
+                    if cbc < bound_len:
+                        mrl.append((bound[0], bound[0] + cbc))
+                        cbc = 0
+                        break
+                    else:
+                        mrl.append(bound)
+                        cbc -= bound_len
+                modifiable_range_list = mrl
 
         modifiable_bytes_pos_list = [] # 存储所有可改字节的位置
         for bound in modifiable_range_list:
@@ -101,15 +114,16 @@ def gen_adv_samples(
                 final_adv = adv[0][:pad_idx + pad_len]
             else:  # 使用原始文件
                 final_adv = inp[0][:pad_idx]
-        elif strategy == 2:
+        elif strategy >= 2:
             # de_attack(model, inp, DOS_HEADER_MODIFY_RANGE[0], change_byte_cnt=4)
             # de_algo = de.DE(inp, model.predict, dim_cnt=2, change_byte_cnt=32, individual_cnt=32 * 2, bounds=[[(pad_idx, pad_idx + 32)], [(0, 255)]])
             # modifiable_range_list = exe_util.find_pe_modifiable_range(fn, use_range=change_range)
 
             # diff_adv函数用于计算修改后的adv
-            if de_strategy == 0:
-                de_bounds = [[(0, 256)]] * changed_bytes_cnt
+            if sub_strategy == 0:
+                individual_dim_bounds = [[(0, 256)]] * changed_bytes_cnt
                 individual_dim_cnt = changed_bytes_cnt
+
                 def diff_adv(adv, diff_vector):
                     adv1 = adv.copy()[0]
                     for i in range(changed_bytes_cnt):
@@ -117,7 +131,7 @@ def gen_adv_samples(
                         pos = modifiable_bytes_pos_ary[i]
                         adv1[pos] = val
                     return adv1
-            elif de_strategy == 1:
+            elif sub_strategy == 1:
                 def diff_adv(adv, diff_vector):
                     adv1 = adv.copy()[0]
 
@@ -129,16 +143,32 @@ def gen_adv_samples(
                         i += 2
                     return adv1
 
-            de_algo = de.DE(
-                inp, predict_func, individual_dim_cnt=individual_dim_cnt, changed_bytes_cnt=changed_bytes_cnt, individual_cnt=de_individual_cnt,
-                bounds=de_bounds, F=de_F, kick_units_rate=kick_units_rate,
-                check_convergence_per_iter=check_convergence_per_iter,
-                range_len_as_changed_bytes_len=exact_len,
-                apply_individual_to_adv_func=diff_adv
-            )
-            adv, iter_sum = de_algo.update(iter_cnt=max_iter, use_kick_mutation=use_kick_mutation)
+            if strategy == 2:
+                de_algo = de.DE(
+                    inp, predict_func, individual_dim_cnt=individual_dim_cnt, individual_cnt=individual_cnt,
+                    bounds=individual_dim_bounds, F=de_F, kick_units_rate=kick_units_rate,
+                    check_convergence_per_iter=check_convergence_per_iter,
+                    check_dim_convergence_tolerate_cnt=3,
+                    apply_individual_to_adv_func=diff_adv,
+                    init_units=init_units, used_init_units_cnt=used_init_units_cnt,
+                )
+                adv, iter_sum, unit = de_algo.update(iter_cnt=max_iter, use_kick_mutation=use_kick_mutation)
+                if len(units) <= 0 or (len(units) > 0 and unit.shape == units[0].shape):
+                    units = units.tolist()
+                    units.append(unit)
+                    units = np.array(units)
+
+                    if used_increasing_units:
+                        init_units = np.concatenate((init_units, np.array([unit])))
+                test_info['iter_sum'] = iter_sum
+            elif strategy == 3:
+                gwo_algo = gwo.GWO(
+                    inp, predict_func, diff_adv, dim_cnt=individual_dim_cnt,
+                    bounds=individual_dim_bounds, pack_size=individual_cnt,
+                )
+                adv, alpha = gwo_algo.optimize(iterations=max_iter)
+
             final_adv = adv[0]
-            test_info['iter_sum'] = iter_sum
 
         pred = model.predict(adv)[0][0]
         test_info['final_score'] = pred
@@ -148,6 +178,11 @@ def gen_adv_samples(
         # 整数数组转字节序列
         bin_adv = bytes(list(final_adv))
         adv_samples.append(bin_adv)
+
+        if save_units:
+            np.save(save_units_path, units)
+            # units_memmap = np.memmap(save_units_path, dtype='float32', mode='w+', shape=(len(fn_list), ))
+            # units_memmap.flush()
 
     return adv_samples, test_info
 

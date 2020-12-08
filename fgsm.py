@@ -3,7 +3,7 @@ import numpy as np
 from sklearn.neighbors import NearestNeighbors
 
 
-def fgsm(model, inp,  inp_emb, modifiable_range_list, step_size=0.1, thres=0.5):
+def fgsm(model, inp,  inp_emb, modifiable_range_list, step_size=0.1, step=100, thres=0.5):
     adv_emb = inp_emb.copy()
     # loss = K.mean(model.output[:, 0])
     loss = losses.binary_crossentropy(model.output[:, 0], 1)
@@ -19,7 +19,7 @@ def fgsm(model, inp,  inp_emb, modifiable_range_list, step_size=0.1, thres=0.5):
 
     iterate = K.function([model.layers[1].output], [model.output, loss, grads, origin_grads])
     g = 0.
-    step = int(1/step_size)*10
+    # step = int(1/step_size)*10
     for _ in range(step):
         model_output, loss_val, grads_val, origin_grads_val = iterate([adv_emb])
         grads_val *= step_size

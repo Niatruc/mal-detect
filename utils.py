@@ -1,4 +1,5 @@
 import numpy as np
+import math
 import pandas as pd
 import tensorflow as tf
 import keras
@@ -20,6 +21,8 @@ def train_test_split(data, label, val_size=0.1):
     y_train, y_test = label[idx[split:]], label[idx[:split]]
     return x_train, x_test, y_train, y_test
 
+def  comb_num(n, m):
+    math
 
 class Logger():
     def __init__(self):
