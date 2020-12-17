@@ -18,7 +18,7 @@ def gen_adv_samples(
         *, step_size=0.1, max_iter=1000,
         de_F=0.2, individual_cnt=10,
         change_range=0b1111, use_kick_mutation=True, kick_units_rate=1., check_convergence_per_iter=100, exact_len=True, sub_strategy=0,
-        save_units=False,save_units_path="units.dat", init_units=None,used_init_units_cnt=5,used_increasing_units=False,
+        save_units=False,save_units_path="units.dat", save_when_below_thres=False, init_units=None,used_init_units_cnt=5,use_increasing_units=False,
 
 ):
     max_len = int(model.input.shape[1])  # 模型接受的输入数据的长度
@@ -50,13 +50,17 @@ def gen_adv_samples(
     if save_units_path and os.path.exists(save_units_path + '.npy'):
         units = np.load(save_units_path + '.npy')
 
-    if used_increasing_units and len(units) > 0:
-        if init_units and len(init_units) > 0:
+    if use_increasing_units and len(units) > 0:
+        if init_units is not None and len(init_units) > 0:
             init_units = np.concatenate((units, init_units))
         else:
             init_units = units
 
+    if init_units is None:
+        init_units = np.array([])
+
     for e, fn in enumerate(fn_list):
+        print("文件: " + fn)
         inp, len_list = preprocess([fn], max_len)
         pad_idx = len_list[0]   # 以文件的长度作为填充字节的起始下标
         org_score = model.predict(inp)[0][0]    # 模型对未添加噪声的文件的预测概率(1表示恶意)
@@ -96,7 +100,7 @@ def gen_adv_samples(
                 modifiable_bytes_pos_list.append(pos)
         modifiable_bytes_pos_ary = np.array(modifiable_bytes_pos_list)
         changed_bytes_cnt = len(modifiable_bytes_pos_ary) # 可改的长度可能不够,所以需要调整
-
+        print("可修改的字节数为: %d" % changed_bytes_cnt)
 
         if strategy == 0 or strategy == 1:
             if len(modifiable_range_list) > 0:
@@ -108,10 +112,11 @@ def gen_adv_samples(
 
                 if thres < org_score:
                     if strategy == 0:
-                        adv, gradient, loss = fgsm.fgsm(model, inp, inp_emb, modifiable_range_list, step_size, thres)
+                        adv, iter_sum = fgsm.fgsm(model, inp, inp_emb, modifiable_range_list, step_size, max_iter, thres)
                     elif strategy == 1:
-                        adv, gradient, loss = evade_at_test_time.evade_at_test_time(model, inp, inp_emb, pad_idx, pad_len, embs, modifiable_range_list, step_size, rounds = 100)
+                        adv, iter_sum = evade_at_test_time.evade_at_test_time(model, inp, inp_emb, modifiable_range_list, embs, step_size, thres, max_iter)
                 final_adv = adv[0][:pad_idx + pad_len]
+                test_info['iter_sum'] = iter_sum
             else:  # 使用原始文件
                 final_adv = inp[0][:pad_idx]
         elif strategy >= 2:
@@ -152,14 +157,15 @@ def gen_adv_samples(
                     apply_individual_to_adv_func=diff_adv,
                     init_units=init_units, used_init_units_cnt=used_init_units_cnt,
                 )
-                adv, iter_sum, unit = de_algo.update(iter_cnt=max_iter, use_kick_mutation=use_kick_mutation)
+                adv, iter_sum, unit = de_algo.update(iter_cnt=max_iter, fitness_value_threshold=thres, use_kick_mutation=use_kick_mutation)
                 if len(units) <= 0 or (len(units) > 0 and unit.shape == units[0].shape):
                     units = units.tolist()
                     units.append(unit)
                     units = np.array(units)
 
-                    if used_increasing_units:
-                        init_units = np.concatenate((init_units, np.array([unit])))
+                    if use_increasing_units:
+                        if not save_when_below_thres or (save_when_below_thres and unit[-1] <= thres): # 是否需要在适应值低于阈值时才保存unit
+                            init_units = np.concatenate((init_units, np.array([unit])))
                 test_info['iter_sum'] = iter_sum
             elif strategy == 3:
                 gwo_algo = gwo.GWO(

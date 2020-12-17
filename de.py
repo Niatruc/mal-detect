@@ -57,20 +57,24 @@ class DE:
         # 对种群进行初始化(每个代表个体的向量的最后一位存其当前适应值)
         if hasattr(self, 'unit_list'):
             self.unit_list[from_num: to_num] = (
-               np.random.rand(self.individual_cnt, self.dim_cnt + 1) * [
-                   np.array(self.each_dim_bounds_total_len_list + [1]) - 1 for _ in range(self.individual_cnt)
-               ]
-           )[from_num: to_num]
+                np.random.rand(self.individual_cnt, self.dim_cnt + 1) * [
+                    np.array(self.each_dim_bounds_total_len_list + [1]) - 1 for _ in range(self.individual_cnt)
+                ]
+            )[from_num: to_num]
         else:
             self.unit_list = np.zeros((self.individual_cnt, self.dim_cnt + 1))
 
         ids = np.arange(len(self.init_units))
-        # np.random.shuffle(ids)
+        np.random.shuffle(ids)
         init_units = self.init_units[ids[0: self.used_init_units_cnt]]
+        unit_size = init_units.shape[1]
+        unit_list_unit_size = self.unit_list.shape[1]
+        min_size = np.minimum(unit_size, unit_list_unit_size)
         for i, unit in enumerate(init_units):
+            if from_num + i >= len(self.unit_list):
+                break
             unit = self.init_units[i]
-            if self.unit_list.shape[1] == unit.shape[0]: # 要确保维度相同才能赋值
-                self.unit_list[from_num + i] = unit
+            self.unit_list[from_num + i, 0:min_size] = unit[0:min_size]
         self.mutate_unit_list = self.unit_list[:, 0:-1].copy()
         self.crossover_unit_list = self.unit_list[:, 0:-1].copy()
 
@@ -98,8 +102,8 @@ class DE:
 
             # 计算变异向量
             mutation = self.unit_list[r1][0 : -1] + self.F * (self.unit_list[r2][0 : -1] - self.unit_list[r3][0 : -1])
-            # pseudo_mutation = pseudo_mutation.clip(np.zeros(self.dim_cnt), np.array(self.each_dim_bounds_total_len_list) - 1)
             mutation = mutation % np.array(self.each_dim_bounds_total_len_list)
+            # mutation = mutation.clip(np.zeros(self.dim_cnt), np.array(self.each_dim_bounds_total_len_list) - 1)
             self.mutate_unit_list[i] = mutation
 
     # 交叉
@@ -107,8 +111,8 @@ class DE:
         rand_j = np.array([[random.randint(0, self.dim_cnt - 1)] for _ in range(self.individual_cnt)])
         ordered_j = np.array([range(self.dim_cnt) for _ in range(self.individual_cnt)])
         rand_float = np.random.rand(self.individual_cnt, self.dim_cnt)
-        judges = (rand_float <= self.CR) | (rand_j == ordered_j)
-        selected_mutations = (judges * -1) & self.mutate_unit_list.astype(int)
+        judges = (rand_float <= self.CR) | (rand_j == ordered_j) # 该张量的每个位以True/False值标记是否交叉
+        selected_mutations = (judges * -1) & self.mutate_unit_list.astype(int) # (True * -1)的值为-1, 二进制表示为全1, 而(False * -1)为全0. 然后进行与运算,柯留下选择的值
         selected_org_units = (~judges * -1) & self.unit_list[:, 0 : -1].astype(int)
         self.crossover_unit_list = selected_mutations + selected_org_units
 
@@ -174,6 +178,7 @@ class DE:
                         print("进行刺激性的突变")
                         kick_units_cnt = np.maximum(int(self.individual_cnt * self.kick_units_rate), 1)
                         # has_preserve_one = False
+                        self.unit_list[0] = self.best_unit
                         self.init_unit_list(1, kick_units_cnt)
                 self.calc_best_fitness()
                 self.fitness_val_list.append(self.best_fitness_value)

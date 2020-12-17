@@ -7,7 +7,7 @@ import functools
 
 
 class GWO:
-    def __init__(self, inp, target_func, apply_individual_to_adv_func, dim_cnt, bounds, pack_size=15):
+    def __init__(self, inp, target_func, apply_individual_to_adv_func, dim_cnt, bounds, pack_size=15, init_wolves=None):
         self.adv = inp.copy()
         self.target_func = target_func
         self.dim_cnt = dim_cnt
@@ -27,6 +27,17 @@ class GWO:
         self.beta = self.init_wolves_position(1)[0]
         self.delta = self.init_wolves_position(1)[0]
         self.omigas = self.init_wolves_position(self.pack_size)  # 每个个体向量的最后一个元素保存适应值
+
+        if init_wolves is not None:
+            try:
+                self.alpha = init_wolves[0]
+                self.beta = init_wolves[1]
+                self.delta = init_wolves[2]
+
+                min_size = np.minimum(len(init_wolves) - 3, self.pack_size)
+                self.omigas = init_wolves[min_size]
+            except Exception as e:
+                pass
 
     def init_wolves_position(self, wolves_cnt):
         wolf_position = np.zeros((wolves_cnt, self.dim_cnt + 1))
