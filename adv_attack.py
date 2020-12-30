@@ -118,11 +118,11 @@ if TEST:
     for index, row in stubborn_records.iterrows():
         file_names.append(row.file_name)
 
-    file_names = ['VirusShare_3c8c59d25ecb9bd91e7b933113578e40', 'VirusShare_46bef7b95fb19e0ce5542332d9ebfe48',]
+    # file_names = ['VirusShare_3c8c59d25ecb9bd91e7b933113578e40', 'VirusShare_46bef7b95fb19e0ce5542332d9ebfe48',]
     for file_name in file_names:
         adv_samples, test_info = gen_adversarial.gen_adv_samples(
             malconv, [virusshare_dir + file_name],
-            strategy=1,
+            strategy=2,
             sub_strategy=0,
             workers=1,
             changed_bytes_cnt=256,
@@ -137,7 +137,7 @@ if TEST:
             kick_units_rate=1.,
             check_convergence_per_iter=100,
 
-            save_units=False,
+            save_units=True,
             save_units_path="stubborn_file_units_4",
             save_when_below_thres=True,
             init_units=init_units3,
@@ -168,8 +168,8 @@ if TEST:
 # --virusshare_dir /dataset/1/virusshare/
 
 # python adv_attack.py
-# --from_row 70
-# --to_row 71
+# --from_row 0
+# --to_row 1000
 # --use_kick_mutation False
 # --changed_bytes_cnt 128
 # --de_individual_cnt 32

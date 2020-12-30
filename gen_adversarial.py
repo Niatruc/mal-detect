@@ -6,7 +6,7 @@ import tensorflow as tf
 from keras.models import load_model
 from keras import backend as K, losses
 from sklearn.neighbors import NearestNeighbors
-import utils, de_old, de, gwo, fgsm, evade_at_test_time, exe_util
+import utils, de_old, de, gwo, fgsm2, evade_at_test_time, exe_util
 from file_util import preprocess
 import functools
 
@@ -26,6 +26,7 @@ def gen_adv_samples(
     if strategy == 0 or strategy == 1:
         inp2emb = K.function([model.input]+ [K.learning_phase()], [model.layers[1].output]) # 嵌入层函数
         embs = [inp2emb([i])[0] for i in range(0,256)] # 求0~255各数字对应的嵌入向量
+        # embs = model.layers[1].get_weights()[0][0:256];  # shape: (257, 8)
 
     # log = utils.Logger()
     adv_samples = []
@@ -92,8 +93,8 @@ def gen_adv_samples(
         modifiable_bytes_pos_list = [] # 存储所有可改字节的位置
         for bound in modifiable_range_list:
             bound_len = bound[1] - bound[0]
-            noise = np.zeros(bound_len)
-            noise = np.random.randint(0, 255, bound_len)
+            # noise = np.zeros(bound_len)
+            noise = np.random.randint(0, 256, bound_len)
             inp[0][bound[0]: bound[1]] = noise
 
             for pos in range(*bound):
@@ -104,26 +105,18 @@ def gen_adv_samples(
 
         if strategy == 0 or strategy == 1:
             if len(modifiable_range_list) > 0:
-                # 填充字节
-                # noise = np.zeros(pad_len)
-                # noise = np.random.randint(0, 255, pad_len)
-                # inp[0][pad_idx: pad_idx + pad_len] = noise
                 inp_emb = np.squeeze(np.array(inp2emb([inp, False])), 0)
 
                 if thres < org_score:
                     if strategy == 0:
-                        adv, iter_sum = fgsm.fgsm(model, inp, inp_emb, modifiable_range_list, step_size, max_iter, thres)
+                        adv, iter_sum = fgsm2.fgsm(model, inp, embs, modifiable_range_list, step_size, max_iter, thres)
                     elif strategy == 1:
                         adv, iter_sum = evade_at_test_time.evade_at_test_time(model, inp, inp_emb, modifiable_range_list, embs, step_size, thres, max_iter)
-                final_adv = adv[0][:pad_idx + pad_len]
+                final_adv = adv[0] # [:pad_idx + pad_len]
                 test_info['iter_sum'] = iter_sum
             else:  # 使用原始文件
                 final_adv = inp[0][:pad_idx]
         elif strategy >= 2:
-            # de_attack(model, inp, DOS_HEADER_MODIFY_RANGE[0], change_byte_cnt=4)
-            # de_algo = de.DE(inp, model.predict, dim_cnt=2, change_byte_cnt=32, individual_cnt=32 * 2, bounds=[[(pad_idx, pad_idx + 32)], [(0, 255)]])
-            # modifiable_range_list = exe_util.find_pe_modifiable_range(fn, use_range=change_range)
-
             # diff_adv函数用于计算修改后的adv
             if sub_strategy == 0:
                 individual_dim_bounds = [[(0, 256)]] * changed_bytes_cnt
@@ -187,8 +180,6 @@ def gen_adv_samples(
 
         if save_units:
             np.save(save_units_path, units)
-            # units_memmap = np.memmap(save_units_path, dtype='float32', mode='w+', shape=(len(fn_list), ))
-            # units_memmap.flush()
 
     return adv_samples, test_info
 

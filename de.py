@@ -67,7 +67,7 @@ class DE:
         ids = np.arange(len(self.init_units))
         np.random.shuffle(ids)
         init_units = self.init_units[ids[0: self.used_init_units_cnt]]
-        unit_size = init_units.shape[1]
+        unit_size = init_units.shape[1] if len(init_units) > 0 else 0
         unit_list_unit_size = self.unit_list.shape[1]
         min_size = np.minimum(unit_size, unit_list_unit_size)
         for i, unit in enumerate(init_units):
