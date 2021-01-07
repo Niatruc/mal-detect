@@ -53,6 +53,7 @@ def gen_adv_samples(
         units = np.load(save_units_path + '.npy')
         if os.path.exists(save_units_path + '_withIterSum.npy'):
             new_unit_itersum_pairs = list(np.load(save_units_path + '_withIterSum.npy'))
+            print("已产生%d个新的优良个体." % len(new_unit_itersum_pairs))
 
     if init_units is None:
         init_units = np.array([])
