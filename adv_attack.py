@@ -107,18 +107,18 @@ if TEST:
         file_names.append(row.file_name)
 
     # file_names = ['VirusShare_3c8c59d25ecb9bd91e7b933113578e40', 'VirusShare_46bef7b95fb19e0ce5542332d9ebfe48',]
-    for file_name in stubborn_files:
+    for file_name in file_names:
         adv_samples, test_info = gen_adversarial.gen_adv_samples(
             malconv, [virusshare_dir + file_name],
             strategy=2,
             sub_strategy=0,
             workers=1,
             changed_bytes_cnt=256,
-            max_iter=50000,
+            max_iter=20000,
             thres=0.5,
 
             de_F=1.,
-            individual_cnt=16,
+            individual_cnt=10,
             batch_size=32,
             change_range=0b0111,
             use_kick_mutation=True,
@@ -128,9 +128,10 @@ if TEST:
             save_units=True,
             save_units_path="file_units_4",
             save_when_below_thres=True,
-            init_units=init_units3,
-            init_units_upper_amount=15,
-            used_init_units_cnt=7,
+            save_units_with_lower_itersum=100, # 保存的unit对应的迭代数至少要多少
+            init_units=None, # init_units3,
+            init_units_upper_amount=16,
+            used_init_units_cnt=4,
             use_increasing_units=True, # 是否把对每个样本产生作用的unit都加到初始units中供下一个样本使用
         )
 

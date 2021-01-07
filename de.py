@@ -43,11 +43,13 @@ class DE:
         self.kick_units_rate = kick_units_rate
         self.check_dim_convergence_tolerant_cnt = check_dim_convergence_tolerate_cnt # 如果连续检查的收敛的维度数相同的次数达到此次数,则对不收敛的维度
         self.convergent_dim_cnt_ary = np.zeros((check_dim_convergence_tolerate_cnt, )) - 1
+        self.got_new_fitness = False # 用于判断种群最佳适应值是否有变化
         self.init_units = init_units
         self.used_init_units_cnt = used_init_units_cnt # 每次用init_units里的多少个个体来初始化unit_list
         if used_init_units_cnt > len(self.init_units):
             self.used_init_units_cnt = len(self.init_units)
 
+        self.unit_list = np.zeros((self.individual_cnt, self.dim_cnt + 1))
         self.init_unit_list(0, self.individual_cnt)
 
         self.calc_best_fitness()
@@ -55,18 +57,19 @@ class DE:
 
     def init_unit_list(self, from_num, to_num):
         # 对种群进行初始化(每个代表个体的向量的最后一位存其当前适应值)
-        if hasattr(self, 'unit_list'):
-            self.unit_list[from_num: to_num] = (
-                np.random.rand(self.individual_cnt, self.dim_cnt + 1) * [
-                    np.array(self.each_dim_bounds_total_len_list + [1]) - 1 for _ in range(self.individual_cnt)
-                ]
-            )[from_num: to_num]
-        else:
-            self.unit_list = np.zeros((self.individual_cnt, self.dim_cnt + 1))
+        # if hasattr(self, 'unit_list'):
+        #     self.unit_list[from_num: to_num] = (
+        #         np.random.rand(self.individual_cnt, self.dim_cnt + 1) * [
+        #             np.array(self.each_dim_bounds_total_len_list + [1]) - 1 for _ in range(self.individual_cnt)
+        #         ]
+        #     )[from_num: to_num]
+        for dim, dim_bound_len in enumerate(self.each_dim_bounds_total_len_list): # 对种群个体进行随机初始化
+            self.unit_list[from_num: to_num, dim] = np.random.randint(0, dim_bound_len, size=(to_num - from_num,))
 
+        # 在初始种群中加入优良个体
         ids = np.arange(len(self.init_units))
         np.random.shuffle(ids)
-        init_units = self.init_units[ids[0: self.used_init_units_cnt]]
+        init_units = self.init_units[ids[0: self.used_init_units_cnt]] # 从self.init_units中随机取
         unit_size = init_units.shape[1] if len(init_units) > 0 else 0
         unit_list_unit_size = self.unit_list.shape[1]
         min_size = np.minimum(unit_size, unit_list_unit_size)
@@ -124,7 +127,10 @@ class DE:
             np.hstack((self.crossover_unit_list[i], new_fitness_values[i])) if j else self.unit_list[i]
             for i, j in enumerate(judges)
         ])
-        self.best_fitness_value = np.min(self.unit_list[:, -1])
+        best_fitness_value = np.min(self.unit_list[:, -1])
+        if best_fitness_value < self.best_fitness_value:
+            self.got_new_fitness = True
+        self.best_fitness_value = best_fitness_value
         self.best_unit = self.unit_list[np.argmin(self.unit_list[:, -1])]
 
     # 计算交叉后的新个体的适应值. 个体数很多的时候会算得很慢, 甚至卡在这里
@@ -168,7 +174,14 @@ class DE:
                     if len(np.unique(self.convergent_dim_cnt_ary)) <= 1:
                         print("连续%d次无新的维度收敛" % self.check_dim_convergence_tolerant_cnt)
                         self.convergent_dim_cnt_ary = np.zeros((self.check_dim_convergence_tolerant_cnt,)) - 1
-                        check_dim_convergence_beyond_tolerance = True
+
+                        if self.got_new_fitness:
+                            print("但是有新的更优个体出现.")
+                        else:
+                            print("且无新的更优个体出现.")
+                            check_dim_convergence_beyond_tolerance = True
+
+                    self.got_new_fitness = False
 
                     population_convergent = False
                     if len(convergent_dims) >= len(self.bounds): # and not use_kick_mutation:

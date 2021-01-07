@@ -18,7 +18,7 @@ def gen_adv_samples(
         *, step_size=0.1, max_iter=1000,
         de_F=0.2, individual_cnt=10,
         change_range=0b1111, use_kick_mutation=True, kick_units_rate=1., check_convergence_per_iter=100, exact_len=True, sub_strategy=0,
-        save_units=False,save_units_path="units", save_when_below_thres=False, init_units=None, init_units_upper_amount=15, used_init_units_cnt=5,use_increasing_units=False,
+        save_units=False,save_units_path="units", save_when_below_thres=False, save_units_with_lower_itersum=100, init_units=None, init_units_upper_amount=15, used_init_units_cnt=5,use_increasing_units=False,
 
 ):
     max_len = int(model.input.shape[1])  # 模型接受的输入数据的长度
@@ -53,7 +53,7 @@ def gen_adv_samples(
         units = np.load(save_units_path + '.npy')
         if os.path.exists(save_units_path + '_withIterSum.npy'):
             new_unit_itersum_pairs = list(np.load(save_units_path + '_withIterSum.npy'))
-            print("已产生%d个新的优良个体." % len(new_unit_itersum_pairs))
+            print("已保存%d个新的优良个体." % len(new_unit_itersum_pairs))
 
     if init_units is None:
         init_units = np.array([])
@@ -64,7 +64,11 @@ def gen_adv_samples(
     init_units_1 = init_units
     if use_increasing_units: # and init_units.shape[1] == units.shape[1]:
         try:
-            init_units_1 = np.concatenate((init_units, units))
+            if len(init_units) <= 0 and len(units) > 0: # 如果init_units是空的而units非空
+                init_units_1 = units
+            elif len(init_units) > 0 and len(units) > 0: # 如果二者皆非空
+                init_units_1 = np.concatenate((init_units, units))
+
         except Exception as e:
             print(e)
 
@@ -167,11 +171,13 @@ def gen_adv_samples(
                     if use_increasing_units:
                         # 是否需要在适应值低于阈值时才保存unit ( unit[-1] <= thres 确保最终分数低于阈值)
                         if not save_when_below_thres or (save_when_below_thres and unit[-1] <= thres):
-                            new_unit_itersum_pairs.append(np.append(unit, iter_sum))
-                            new_unit_itersum_pairs.sort(key=lambda x: x[-1], reverse=True)
-                            new_unit_itersum_pairs = new_unit_itersum_pairs[0: new_unit_upper_amount] # 优先存迭代次数较大的样本对应的unit
-                            # init_units = np.concatenate((init_units, np.array([unit])))
-                            init_units_1 = np.concatenate((init_units, np.array(new_unit_itersum_pairs)[:, 0:-1]))
+                            if iter_sum >= save_units_with_lower_itersum: # 主要是为了防止那些迭代一次就成功的样本对应的unit也混进来
+                                new_unit_itersum_pairs.append(np.append(unit, iter_sum))
+                                new_unit_itersum_pairs.sort(key=lambda x: x[-1], reverse=True)
+                                new_unit_itersum_pairs = new_unit_itersum_pairs[0: new_unit_upper_amount] # 优先存迭代次数较大的样本对应的unit
+                                # init_units = np.concatenate((init_units, np.array([unit])))
+                                new_unit = np.array(new_unit_itersum_pairs)[:, 0:-1]
+                                init_units_1 = np.append(init_units, new_unit).reshape(-1, new_unit.shape[1])
                 test_info['iter_sum'] = iter_sum
             elif strategy == 3:
                 gwo_algo = gwo.GWO(
