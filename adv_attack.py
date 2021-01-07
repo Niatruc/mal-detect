@@ -74,15 +74,6 @@ if TEST:
     utils.limit_gpu_memory(0)
     malconv = load_model("../../ember/malconv/malconv.h5")
 
-    file_paths = [
-        # '/home/bohan/res/ml_dataset/virusshare/VirusShare_24580df24fb34966023b5dd6b37b1a3c',
-        # '/home/bohan/res/ml_dataset/virusshare/VirusShare_3c8c59d25ecb9bd91e7b933113578e40',
-        # '/home/bohan/res/ml_dataset/virusshare/VirusShare_5a76aa2603e49a7dd6bac0ce743d25c0',
-        # '/home/bohan/res/ml_dataset/virusshare/VirusShare_1e4997bc0fced91b25632c3151f91710',
-        # '/home/bohan/res/ml_dataset/virusshare/VirusShare_3a4fac1796f0816d7567abb9bf0a9440',
-        # '/home/bohan/res/ml_dataset/virusshare/VirusShare_01cd58ba6e5f9d1e1f718dfba7478d30',
-        # '/home/bohan/res/ml_dataset/Malware_Detection_PE-Based_Analysis_Using_Deep_Learning_Algorithm_Dataset_old/Dataset/Virus/Virus train/Locker/VirusShare_13c63e0329202076f45796dba3ed6b8f.exe'
-    ]
     successful_file_paths = [
         '/home/bohan/res/ml_dataset/virusshare/VirusShare_3c8c59d25ecb9bd91e7b933113578e40',
         '/home/bohan/res/ml_dataset/virusshare/VirusShare_3a4fac1796f0816d7567abb9bf0a9440',
@@ -91,23 +82,20 @@ if TEST:
         '/home/bohan/res/ml_dataset/virusshare/VirusShare_22fd8d088ef3ccadc6baa44dc8cb7490',
     ]
 
-    stubborn_file_paths = [
-        # '/home/bohan/res/ml_dataset/virusshare/VirusShare_1e4997bc0fced91b25632c3151f91710',
-        # '/home/bohan/res/ml_dataset/virusshare/VirusShare_01dd838da5efd739579f412e4f56b180',
-        # '/home/bohan/res/ml_dataset/virusshare/VirusShare_21d3b6c1cd1873add493e0675fbd8220',
-        # '/home/bohan/res/ml_dataset/virusshare/VirusShare_46bef7b95fb19e0ce5542332d9ebfe48',
-        # '/home/bohan/res/ml_dataset/virusshare/VirusShare_13351c7d2aa385a6b0e2b08f676f8250',
-        # '/home/bohan/res/ml_dataset/virusshare/VirusShare_327ab01f70084d5fc63bc5669e235740',
-        '/home/bohan/res/ml_dataset/virusshare/VirusShare_06f1c1bc8ad03a43633807618a8e3158',
-
+    stubborn_files = [
+        'VirusShare_1e4997bc0fced91b25632c3151f91710',
+        'VirusShare_01dd838da5efd739579f412e4f56b180',
+        'VirusShare_21d3b6c1cd1873add493e0675fbd8220',
+        'VirusShare_46bef7b95fb19e0ce5542332d9ebfe48',
+        'VirusShare_13351c7d2aa385a6b0e2b08f676f8250',
+        'VirusShare_327ab01f70084d5fc63bc5669e235740',
+        'VirusShare_06f1c1bc8ad03a43633807618a8e3158',
     ]
     # 4401, 4818, 46036, 4387, 50000(x), 4047
-    init_units1 = np.load("stubborn_file_units.npy")
-    init_units2 = np.load("units_more_powerful.npy")
-    init_units3 = np.load("stubborn_units_more_powerful.npy")
-    init_units = np.concatenate((init_units1, init_units2))
+    init_units3 = np.load("units_more_powerful.npy")
 
-    stubborn_records = pd.read_csv('../model_test_result/de_attack_result_256_bytes_from_first_stubborn.csv', index_col=0)
+    # records = pd.read_csv('../model_test_result/de_attack_result_256_bytes_from_first_stubborn.csv', index_col=0)
+    records = pd.read_csv('../model_test_result/virusshare_1000.csv', index_col=0)
     try:
         stubborn_attack_result = pd.read_csv('./fgsm_attack_result_256_bytes_from_first_stubborn.csv', index_col=0)
     except Exception:
@@ -115,11 +103,11 @@ if TEST:
 
     virusshare_dir = "/home/bohan/res/ml_dataset/virusshare/"
     file_names = []
-    for index, row in stubborn_records.iterrows():
+    for index, row in records.iterrows():
         file_names.append(row.file_name)
 
     # file_names = ['VirusShare_3c8c59d25ecb9bd91e7b933113578e40', 'VirusShare_46bef7b95fb19e0ce5542332d9ebfe48',]
-    for file_name in file_names:
+    for file_name in stubborn_files:
         adv_samples, test_info = gen_adversarial.gen_adv_samples(
             malconv, [virusshare_dir + file_name],
             strategy=2,
@@ -138,11 +126,12 @@ if TEST:
             check_convergence_per_iter=100,
 
             save_units=True,
-            save_units_path="stubborn_file_units_4",
+            save_units_path="file_units_4",
             save_when_below_thres=True,
             init_units=init_units3,
+            init_units_upper_amount=15,
             used_init_units_cnt=7,
-            use_increasing_units=True,
+            use_increasing_units=True, # 是否把对每个样本产生作用的unit都加到初始units中供下一个样本使用
         )
 
         # stubborn_attack_result = stubborn_attack_result.append({

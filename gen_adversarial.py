@@ -18,7 +18,7 @@ def gen_adv_samples(
         *, step_size=0.1, max_iter=1000,
         de_F=0.2, individual_cnt=10,
         change_range=0b1111, use_kick_mutation=True, kick_units_rate=1., check_convergence_per_iter=100, exact_len=True, sub_strategy=0,
-        save_units=False,save_units_path="units.dat", save_when_below_thres=False, init_units=None,used_init_units_cnt=5,use_increasing_units=False,
+        save_units=False,save_units_path="units", save_when_below_thres=False, init_units=None, init_units_upper_amount=15, used_init_units_cnt=5,use_increasing_units=False,
 
 ):
     max_len = int(model.input.shape[1])  # 模型接受的输入数据的长度
@@ -48,17 +48,24 @@ def gen_adv_samples(
             return res
 
     units = np.array([])
+    new_unit_itersum_pairs = [] # 把每个成功样本的unit和对应的迭代数存起来. 优先存迭代数多的样本对应的unit
     if save_units_path and os.path.exists(save_units_path + '.npy'):
         units = np.load(save_units_path + '.npy')
-
-    if use_increasing_units and len(units) > 0:
-        if init_units is not None and len(init_units) > 0:
-            init_units = np.concatenate((units, init_units))
-        else:
-            init_units = units
+        if os.path.exists(save_units_path + '_withIterSum.npy'):
+            new_unit_itersum_pairs = list(np.load(save_units_path + '_withIterSum.npy'))
 
     if init_units is None:
         init_units = np.array([])
+
+    new_unit_upper_amount = init_units_upper_amount - len(init_units)
+    new_unit_upper_amount = new_unit_upper_amount if new_unit_upper_amount > 0 else 0
+
+    init_units_1 = init_units
+    if use_increasing_units: # and init_units.shape[1] == units.shape[1]:
+        try:
+            init_units_1 = np.concatenate((init_units, units))
+        except Exception as e:
+            print(e)
 
     for e, fn in enumerate(fn_list):
         print("文件: " + fn)
@@ -148,7 +155,7 @@ def gen_adv_samples(
                     check_convergence_per_iter=check_convergence_per_iter,
                     check_dim_convergence_tolerate_cnt=3,
                     apply_individual_to_adv_func=diff_adv,
-                    init_units=init_units, used_init_units_cnt=used_init_units_cnt,
+                    init_units=init_units_1, used_init_units_cnt=used_init_units_cnt,
                 )
                 adv, iter_sum, unit = de_algo.update(iter_cnt=max_iter, fitness_value_threshold=thres, use_kick_mutation=use_kick_mutation)
                 if len(units) <= 0 or (len(units) > 0 and unit.shape == units[0].shape):
@@ -157,8 +164,13 @@ def gen_adv_samples(
                     units = np.array(units)
 
                     if use_increasing_units:
-                        if not save_when_below_thres or (save_when_below_thres and unit[-1] <= thres): # 是否需要在适应值低于阈值时才保存unit
-                            init_units = np.concatenate((init_units, np.array([unit])))
+                        # 是否需要在适应值低于阈值时才保存unit ( unit[-1] <= thres 确保最终分数低于阈值)
+                        if not save_when_below_thres or (save_when_below_thres and unit[-1] <= thres):
+                            new_unit_itersum_pairs.append(np.append(unit, iter_sum))
+                            new_unit_itersum_pairs.sort(key=lambda x: x[-1], reverse=True)
+                            new_unit_itersum_pairs = new_unit_itersum_pairs[0: new_unit_upper_amount] # 优先存迭代次数较大的样本对应的unit
+                            # init_units = np.concatenate((init_units, np.array([unit])))
+                            init_units_1 = np.concatenate((init_units, np.array(new_unit_itersum_pairs)[:, 0:-1]))
                 test_info['iter_sum'] = iter_sum
             elif strategy == 3:
                 gwo_algo = gwo.GWO(
@@ -180,6 +192,6 @@ def gen_adv_samples(
 
         if save_units:
             np.save(save_units_path, units)
+            np.save(save_units_path + '_withIterSum', new_unit_itersum_pairs)
 
     return adv_samples, test_info
-

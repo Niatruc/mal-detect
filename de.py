@@ -152,9 +152,9 @@ class DE:
         has_check_convergence_cnt = -1
         while True:
             # 每隔一定代数, 检查是否有某些维已经收敛. 对这些随机取一些个体, 对它们在这些维上重新取随机值(刺激性的突变), 并算一次适应值
-            if iter_sum % self.check_convergence_per_iter == 0:
+            if iter_sum > 0 and iter_sum % self.check_convergence_per_iter == 0:
                 dim_convergence = self.check_dim_convergence()
-                if True in dim_convergence:
+                if True: # in dim_convergence:
                     convergent_dims = []
                     for i, is_convergent in enumerate(dim_convergence):
                         if is_convergent:
@@ -166,6 +166,7 @@ class DE:
                     self.convergent_dim_cnt_ary[has_check_convergence_cnt % self.check_dim_convergence_tolerant_cnt] = len(convergent_dims)
                     if len(np.unique(self.convergent_dim_cnt_ary)) <= 1:
                         print("连续%d次无新的维度收敛" % self.check_dim_convergence_tolerant_cnt)
+                        self.convergent_dim_cnt_ary = np.zeros((self.check_dim_convergence_tolerant_cnt,)) - 1
                         check_dim_convergence_beyond_tolerance = True
 
                     population_convergent = False
