@@ -153,6 +153,7 @@ class DE:
         while True:
             # 每隔一定代数, 检查是否有某些维已经收敛. 对这些随机取一些个体, 对它们在这些维上重新取随机值(刺激性的突变), 并算一次适应值
             if iter_sum > 0 and iter_sum % self.check_convergence_per_iter == 0:
+                print("已迭代%d次,检查收敛状况." % iter_sum)
                 dim_convergence = self.check_dim_convergence()
                 if True: # in dim_convergence:
                     convergent_dims = []
