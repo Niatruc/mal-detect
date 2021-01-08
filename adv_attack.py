@@ -115,7 +115,7 @@ if TEST:
             workers=1,
             changed_bytes_cnt=256,
             max_iter=20000,
-            thres=0.5,
+            thres=0.999,
 
             de_F=1.,
             individual_cnt=10,
@@ -128,9 +128,9 @@ if TEST:
             save_units=True,
             save_units_path="file_units_4",
             save_when_below_thres=True,
-            save_units_with_lower_itersum=100, # 保存的unit对应的迭代数至少要多少
+            save_units_with_lower_itersum=1, # 保存的unit对应的迭代数至少要多少
             init_units=None, # init_units3,
-            init_units_upper_amount=16,
+            init_units_upper_amount=3,
             used_init_units_cnt=4,
             use_increasing_units=True, # 是否把对每个样本产生作用的unit都加到初始units中供下一个样本使用
         )

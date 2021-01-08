@@ -52,14 +52,17 @@ def gen_adv_samples(
     if save_units_path and os.path.exists(save_units_path + '.npy'):
         units = np.load(save_units_path + '.npy')
         if os.path.exists(save_units_path + '_withIterSum.npy'):
-            new_unit_itersum_pairs = list(np.load(save_units_path + '_withIterSum.npy'))
+            new_unit_itersum_pairs = np.load(save_units_path + '_withIterSum.npy')
             print("已保存%d个新的优良个体." % len(new_unit_itersum_pairs))
+            print("它们对应的迭代数: ", new_unit_itersum_pairs[:, -1])
+            new_unit_itersum_pairs = list(new_unit_itersum_pairs)
 
     if init_units is None:
         init_units = np.array([])
 
     new_unit_upper_amount = init_units_upper_amount - len(init_units)
     new_unit_upper_amount = new_unit_upper_amount if new_unit_upper_amount > 0 else 0
+    print("额外导入的新优良个体有%d个." % new_unit_upper_amount)
 
     init_units_1 = init_units
     if use_increasing_units: # and init_units.shape[1] == units.shape[1]:
