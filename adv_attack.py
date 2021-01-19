@@ -5,6 +5,9 @@ import numpy as np
 import argparse
 
 import file_util, gen_adversarial, utils
+import lightgbm as lgb
+import functools, ember
+from multiprocessing import Pool
 
 # os.sys.path.append("/home/bohan/res/ml_models/zbh/")
 parser = argparse.ArgumentParser(description='Malconv-keras adversarial attack')
@@ -29,6 +32,8 @@ parser.add_argument('--search_exact_len', type=bool, default=True,    help="sear
 TEST = False
 TEST = True
 
+TEST_LIGHTGBM= True
+
 if __name__ == '__main__' and not TEST:
     args = parser.parse_args()
 
@@ -36,7 +41,7 @@ if __name__ == '__main__' and not TEST:
     os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_num
 
     utils.limit_gpu_memory(args.limit)
-    malconv = load_model(args.model_path)
+    model = load_model(args.model_path)
 
     malware_test_res = pd.read_csv(args.malware_test_res_csv_path)
     try:
@@ -50,7 +55,7 @@ if __name__ == '__main__' and not TEST:
         print("开始操作: %d: %s" % (index, virus_path))
 
         _, test_info = gen_adversarial.gen_adv_samples(
-            malconv, [virus_path],
+            model, [virus_path],
             workers=args.workers_cnt,
             strategy=args.strategy,
             changed_bytes_cnt=args.changed_bytes_cnt,
@@ -70,34 +75,63 @@ if __name__ == '__main__' and not TEST:
 
         attack_result.to_csv(args.save_path)
 
+extractor = ember.PEFeatureExtractor()
+# 这个函数定义必须放在模块的顶层,不能在函数内定义
+def calc_feature(adv):
+    features = np.array(extractor.feature_vector(adv[1].astype(np.byte).tostring()), dtype=np.float32)
+    return adv[0], features
+pool = Pool(10) # 这个初始化必须放calc_feature后妈,不然会报找不到某attribute的错
 if TEST:
     utils.limit_gpu_memory(0)
-    malconv = load_model("../../ember/malconv/malconv.h5")
+
+    predict_func = None
+    if TEST_LIGHTGBM:
+        model = lgb.Booster(model_file="/home/bohan/res/ml_dataset/ember2018/ember_model_2018.txt")
+        # predict_func = functools.partial(ember.predict_sample, model)
+
+        def predict_func(adv_ary):
+            adv_feature_ary = []
+            adv_ary_ = [(i, adv) for i, adv in enumerate(adv_ary)]
+
+            # adv_feature_ary.append(features)
+            # I.append(i)
+            adv_feature_ary = pool.map(calc_feature, adv_ary_)
+            # a = [pool.apply_async(calc_feature, args=(adv,)) for adv in adv_ary]
+            # adv_feature_ary = [p.get() for p in a]
+            print(np.array(adv_feature_ary)[:, 0])
+            adv_feature_ary = np.array([adv_[1] for adv_ in adv_feature_ary])
+            res = model.predict(adv_feature_ary)
+            return res
+    else:
+        model = load_model("../../ember/malconv/malconv.h5")
 
     successful_file_paths = [
-        '/home/bohan/res/ml_dataset/virusshare/VirusShare_3c8c59d25ecb9bd91e7b933113578e40',
-        '/home/bohan/res/ml_dataset/virusshare/VirusShare_3a4fac1796f0816d7567abb9bf0a9440',
-        '/home/bohan/res/ml_dataset/virusshare/VirusShare_01cd58ba6e5f9d1e1f718dfba7478d30',
-        '/home/bohan/res/ml_dataset/virusshare/VirusShare_40fd3647c44239df91fc5d7765dd0d9f',
-        '/home/bohan/res/ml_dataset/virusshare/VirusShare_22fd8d088ef3ccadc6baa44dc8cb7490',
+        'VirusShare_3c8c59d25ecb9bd91e7b933113578e40',
+        'VirusShare_3a4fac1796f0816d7567abb9bf0a9440',
+        'VirusShare_01cd58ba6e5f9d1e1f718dfba7478d30',
+        'VirusShare_40fd3647c44239df91fc5d7765dd0d9f',
+        'VirusShare_22fd8d088ef3ccadc6baa44dc8cb7490',
     ]
 
     stubborn_files = [
         'VirusShare_1e4997bc0fced91b25632c3151f91710',
         'VirusShare_01dd838da5efd739579f412e4f56b180',
         'VirusShare_21d3b6c1cd1873add493e0675fbd8220',
-        'VirusShare_46bef7b95fb19e0ce5542332d9ebfe48',
         'VirusShare_13351c7d2aa385a6b0e2b08f676f8250',
+        'VirusShare_46bef7b95fb19e0ce5542332d9ebfe48',
         'VirusShare_327ab01f70084d5fc63bc5669e235740',
         'VirusShare_06f1c1bc8ad03a43633807618a8e3158',
     ]
     # 4401, 4818, 46036, 4387, 50000(x), 4047
+
     init_units3 = np.load("units_more_powerful.npy")
 
-    # records = pd.read_csv('../model_test_result/de_attack_result_256_bytes_from_first_stubborn.csv', index_col=0)
-    records = pd.read_csv('../model_test_result/virusshare_1000.csv', index_col=0)
+    records = pd.read_csv('../model_test_result/de_attack_result_256_bytes_from_first_stubborn.csv', index_col=0)
+    if TEST_LIGHTGBM:
+        records = pd.read_csv('../model_test_result/virusshare_1000_lightgbm.csv', index_col=False)
+    # records = pd.read_csv('../model_test_result/virusshare_1000.csv', index_col=0)
     try:
-        stubborn_attack_result = pd.read_csv('./fgsm_attack_result_256_bytes_from_first_stubborn.csv', index_col=0)
+        stubborn_attack_result = pd.read_csv('./de_attack_result_256_bytes_from_first_lightgbm_20210118.csv', index_col=0)
     except Exception:
         stubborn_attack_result = pd.DataFrame(columns=('file_name', 'org_score', 'iter_sum', 'final_score'))
 
@@ -109,13 +143,13 @@ if TEST:
     # file_names = ['VirusShare_3c8c59d25ecb9bd91e7b933113578e40', 'VirusShare_46bef7b95fb19e0ce5542332d9ebfe48',]
     for file_name in file_names:
         adv_samples, test_info = gen_adversarial.gen_adv_samples(
-            malconv, [virusshare_dir + file_name],
+            model, [virusshare_dir + file_name], predict_func,
             strategy=2,
             sub_strategy=0,
             workers=1,
             changed_bytes_cnt=256,
-            max_iter=20000,
-            thres=0.999,
+            max_iter=5000,
+            thres=0.5,
 
             de_F=1.,
             individual_cnt=10,
@@ -126,23 +160,23 @@ if TEST:
             check_convergence_per_iter=100,
 
             save_units=True,
-            save_units_path="file_units_4",
+            save_units_path="file_units_20210118_lightgbm",
             save_when_below_thres=True,
             save_units_with_lower_itersum=1, # 保存的unit对应的迭代数至少要多少
-            init_units=None, # init_units3,
-            init_units_upper_amount=3,
+            init_units=None,#init_units3,
+            init_units_upper_amount=15,
             used_init_units_cnt=4,
             use_increasing_units=True, # 是否把对每个样本产生作用的unit都加到初始units中供下一个样本使用
         )
 
-        # stubborn_attack_result = stubborn_attack_result.append({
-        #     'file_name': file_name,
-        #     'org_score': 1.0,
-        #     'iter_sum': test_info['iter_sum'],
-        #     'final_score': test_info['final_score']
-        # }, ignore_index=True)
-        #
-        # stubborn_attack_result.to_csv("de_attack_result_256_bytes_from_first_stubborn_2.csv")
+        stubborn_attack_result = stubborn_attack_result.append({
+            'file_name': file_name,
+            'org_score': 1.0,
+            'iter_sum': test_info['iter_sum'],
+            'final_score': test_info['final_score']
+        }, ignore_index=True)
+
+        stubborn_attack_result.to_csv("de_attack_result_256_bytes_from_first_lightgbm_20210118.csv")
 
 # python adv_attack.py
 # --from_row 70

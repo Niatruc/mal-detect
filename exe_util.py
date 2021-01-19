@@ -86,3 +86,24 @@ def find_packed_pe_modifiable_range(exe_file_path, max_len = 2**20, use_range=0b
     dos_header_modifiable_range = (2, 0x40)
     pe_header_modifiable_range = (0x40, 0x40 + 4 + 20 + 0xe0) # 使用32位PE头大小, 确保不会改动打包部分
     return [[dos_header_modifiable_range], [pe_header_modifiable_range]]
+
+def get_modifiable_range_list(fn, change_range, changed_bytes_cnt):
+    modifiable_range_list = []
+    # 从可改的第一个字节开始到第changed_bytes_cnt个字节结束
+    modifiable_range_list = find_pe_modifiable_range(fn, use_range=change_range)
+    if changed_bytes_cnt > 0:
+        cbc = changed_bytes_cnt
+        mrl = []
+        for bound in modifiable_range_list:
+            bound_len = bound[1] - bound[0]
+            if cbc < bound_len:
+                mrl.append((bound[0], bound[0] + cbc))
+                cbc = 0
+                break
+            else:
+                mrl.append(bound)
+                cbc -= bound_len
+        modifiable_range_list = mrl
+
+    return  modifiable_range_list
+
