@@ -178,7 +178,8 @@ def gen_adv_samples(
 
             final_adv = adv[0]
 
-        pred = model.predict(adv)[0][0]
+        # pred = model.predict(adv)[0][0]
+        pred = predict_func(adv).reshape(1,)[0]
         test_info['final_score'] = pred
         print("最终置信度: ", pred)
         # log.write(fn, org_score, pad_idx, pad_len, loss, pred)

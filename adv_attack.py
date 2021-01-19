@@ -32,6 +32,7 @@ parser.add_argument('--search_exact_len', type=bool, default=True,    help="sear
 TEST = False
 TEST = True
 
+TEST_LIGHTGBM= False
 TEST_LIGHTGBM= True
 
 if __name__ == '__main__' and not TEST:
