@@ -32,8 +32,11 @@ parser.add_argument('--search_exact_len', type=bool, default=True,    help="sear
 TEST = False
 TEST = True
 
-TEST_LIGHTGBM= False
 TEST_LIGHTGBM= True
+TEST_LIGHTGBM= False
+
+TEST_DEEPMALNET= False
+TEST_DEEPMALNET= True
 
 if __name__ == '__main__' and not TEST:
     args = parser.parse_args()
@@ -86,9 +89,13 @@ if TEST:
     utils.limit_gpu_memory(0)
 
     predict_func = None
-    if TEST_LIGHTGBM:
-        model = lgb.Booster(model_file="/home/bohan/res/ml_dataset/ember2018/ember_model_2018.txt")
-        # predict_func = functools.partial(ember.predict_sample, model)
+    if TEST_LIGHTGBM or TEST_DEEPMALNET:
+        if TEST_LIGHTGBM:
+            model = lgb.Booster(model_file="/home/bohan/res/ml_dataset/ember2018/ember_model_2018.txt")
+            records = pd.read_csv('../model_test_result/virusshare_1000_lightgbm.csv', index_col=False)
+        if TEST_DEEPMALNET:
+            model = load_model("/home/bohan/res/ml_models/zbh/deepmalnet.h5")
+            records = pd.read_csv('../model_test_result/virusshare_1000_deepmalnet.csv', index_col=False)
 
         def predict_func(adv_ary):
             adv_feature_ary = []
@@ -125,14 +132,13 @@ if TEST:
     ]
     # 4401, 4818, 46036, 4387, 50000(x), 4047
 
-    init_units3 = np.load("units_more_powerful.npy")
+    init_units3 = np.load("stubborn_units_more_powerful.npy")
 
-    records = pd.read_csv('../model_test_result/de_attack_result_256_bytes_from_first_stubborn.csv', index_col=0)
-    if TEST_LIGHTGBM:
-        records = pd.read_csv('../model_test_result/virusshare_1000_lightgbm.csv', index_col=False)
+    # records = pd.read_csv('../model_test_result/de_attack_result_256_bytes_from_first_stubborn.csv', index_col=0)
+    # records = pd.read_csv('../model_test_result/virusshare_1000_lightgbm.csv', index_col=False)
     # records = pd.read_csv('../model_test_result/virusshare_1000.csv', index_col=0)
     try:
-        stubborn_attack_result = pd.read_csv('./de_attack_result_256_bytes_from_first_lightgbm_20210118.csv', index_col=0)
+        stubborn_attack_result = pd.read_csv('./de_attack_result_256_bytes_20210122.csv', index_col=0)
     except Exception:
         stubborn_attack_result = pd.DataFrame(columns=('file_name', 'org_score', 'iter_sum', 'final_score'))
 
@@ -142,7 +148,7 @@ if TEST:
         file_names.append(row.file_name)
 
     # file_names = ['VirusShare_3c8c59d25ecb9bd91e7b933113578e40', 'VirusShare_46bef7b95fb19e0ce5542332d9ebfe48',]
-    for file_name in file_names:
+    for file_name in file_names[17:]:
         adv_samples, test_info = gen_adversarial.gen_adv_samples(
             model, [virusshare_dir + file_name], predict_func,
             strategy=2,
@@ -161,10 +167,10 @@ if TEST:
             check_convergence_per_iter=100,
 
             save_units=True,
-            save_units_path="file_units_20210118_lightgbm",
-            save_when_below_thres=True,
+            save_units_path="file_units_20210122",
+            save_as_init_unit_when_below_thres=True,
             save_units_with_lower_itersum=1, # 保存的unit对应的迭代数至少要多少
-            init_units=None,#init_units3,
+            init_units=init_units3,
             init_units_upper_amount=15,
             used_init_units_cnt=4,
             use_increasing_units=True, # 是否把对每个样本产生作用的unit都加到初始units中供下一个样本使用
@@ -177,7 +183,7 @@ if TEST:
             'final_score': test_info['final_score']
         }, ignore_index=True)
 
-        stubborn_attack_result.to_csv("de_attack_result_256_bytes_from_first_lightgbm_20210118.csv")
+        stubborn_attack_result.to_csv("de_attack_result_256_bytes_20210122.csv")
 
 # python adv_attack.py
 # --from_row 70

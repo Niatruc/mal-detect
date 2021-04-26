@@ -77,13 +77,13 @@ def read_files_batch_in_dir(file_dir, batch_size=32, max_len=2**20):
 				batch = []
 				bs = batch_size
 
-
+# 只产生某类样本的批
 def data_generator(exe_samples_path, ground_truth, batch_size=64, max_len=2**20, shuffle=True):
 	for file_paths, file_bytes_batch in read_files_batch_in_dir(exe_samples_path, batch_size, max_len):
 		# print(file_paths)
 		yield (file_bytes_batch, ground_truth)
 
-
+# 把(文件路径,标签)组成的列表分成训练集和测试集
 def split_train_test_samples(mal_file_name_label_arr, benign_file_name_label_arr, train_test_ratio=(7, 3)):
 	train_rate = train_test_ratio[0] / sum(train_test_ratio)
 	train_mal_file_cnt = math.ceil(len(mal_file_name_label_arr) * train_rate)
@@ -94,7 +94,8 @@ def split_train_test_samples(mal_file_name_label_arr, benign_file_name_label_arr
 
 	return train_file_name_label_arr, test_file_name_label_arr
 
-
+# 分别传入善意和恶意软件的存放路径,生成(文件路径,标签)组成的列表,善恶各一个
+# limit_cnt大于0则表示样使用的本数量
 def collect_exe_file_name_label(mal_exe_samples_path_arr, benign_exe_samples_path_arr, limit_cnt=(-1, -1), balanced=True):
 	def get_file_name_label_arr(path_arr, label, limit_cnt):
 		file_name_arr = []
@@ -124,13 +125,14 @@ def collect_exe_file_name_label(mal_exe_samples_path_arr, benign_exe_samples_pat
 def collect_exe_file_name_label_to_csv(mal_exe_samples_path_arr, benign_exe_samples_path_arr, limit_cnt=(-1, -1)):
 	mal_file_name_label_arr, benign_file_name_label_arr = collect_exe_file_name_label(mal_exe_samples_path_arr, benign_exe_samples_path_arr, balanced=False)
 
-
+# 使用包含(文件路径,标签)元组的列表(善恶分开的)来生成数据. 其调用了data_generator_3
+# 使用前可先调用collect_exe_file_name_label生成元组
 def data_generator_2(mal_file_name_label_arr, benign_file_name_label_arr, batch_size=64, max_len=2**20, shuffle=True, balanced=False):
 	# idx = np.arange(len(data))
 	# if shuffle:
 	# 	np.random.shuffle(idx)
 
-	# 需要两个类的样本数量一致
+	# 是否需要两个类的样本数量一致
 	if balanced:
 		cnt = min(len(mal_file_name_label_arr), len(benign_file_name_label_arr))
 		mal_file_name_label_arr = mal_file_name_label_arr[0:cnt]
@@ -140,7 +142,7 @@ def data_generator_2(mal_file_name_label_arr, benign_file_name_label_arr, batch_
 
 	data_generator_3(file_name_label_arr, batch_size, max_len)
 
-
+# 使用包含(文件路径,标签)元组的列表来生成数据
 def data_generator_3(file_name_label_arr, batch_size=64, max_len=2**20, shuffle=True):
 	file_name_label_arr = np.array(file_name_label_arr)
 
@@ -153,12 +155,12 @@ def data_generator_3(file_name_label_arr, batch_size=64, max_len=2**20, shuffle=
 		for i in range(len(file_name_label_arr) // batch_size + 1)
 	]
 
-	while True:
-		for batch in batches:
-			fn_list = [fn for fn, _ in batch]
-			labels = [label for _, label in batch]
-			seqs = preprocess(fn_list, max_len)[0]
-			yield seqs, np.array(labels)
+	# while True:
+	for batch in batches:
+		fn_list = [fn for fn, _ in batch]
+		labels = [int(label) for _, label in batch]
+		seqs = preprocess(fn_list, max_len)[0]
+		yield seqs, np.array(labels)
 
 	# for file_name, label in file_name_label_arr:
 	# 	seq = read_file_to_bytes_arr(file_name, max_len)
