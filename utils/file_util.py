@@ -1,4 +1,5 @@
 import os, math
+from multiprocessing import Pool
 import numpy as np
 from sklearn import metrics
 import pandas as pd
@@ -13,6 +14,7 @@ from keras.callbacks import ModelCheckpoint, EarlyStopping
 # config.gpu_options.allow_growth = True
 # keras.backend.tensorflow_backend.set_session(tf.Session(config=config))
 
+MAX_LEN = 2 ** 20
 
 def preprocess(fn_list, max_len):
 	'''
@@ -140,7 +142,7 @@ def data_generator_2(mal_file_name_label_arr, benign_file_name_label_arr, batch_
 
 	file_name_label_arr = mal_file_name_label_arr + benign_file_name_label_arr
 
-	data_generator_3(file_name_label_arr, batch_size, max_len)
+	data_generator_3(file_name_label_arr, batch_size, max_len, shuffle)
 
 # 使用包含(文件路径,标签)元组的列表来生成数据
 def data_generator_3(file_name_label_arr, batch_size=64, max_len=2**20, shuffle=True):
@@ -162,10 +164,30 @@ def data_generator_3(file_name_label_arr, batch_size=64, max_len=2**20, shuffle=
 		seqs = preprocess(fn_list, max_len)[0]
 		yield seqs, np.array(labels)
 
-	# for file_name, label in file_name_label_arr:
-	# 	seq = read_file_to_bytes_arr(file_name, max_len)
-	# 	yield(seq, label)
+# 给下面的get_all_data用
+def preprocess2(file_name):
+	return preprocess([file_name], MAX_LEN)[0]
 
+# 一次性生成所有样本数据
+# 注意在ipython或notebook中,第二次使用pool.map会卡住,会需要重启kernel. 
+def get_all_data(mal_file_name_label_arr, benign_file_name_label_arr, max_len=2**20, balanced=True, pool_size=4):
+	# 是否需要两个类的样本数量一致
+	if balanced:
+		cnt = min(len(mal_file_name_label_arr), len(benign_file_name_label_arr))
+		mal_file_name_label_arr = mal_file_name_label_arr[0:cnt]
+		benign_file_name_label_arr = benign_file_name_label_arr[0:cnt]
+
+	file_name_label_arr = np.array(mal_file_name_label_arr + benign_file_name_label_arr)
+	file_name_arr = file_name_label_arr[:, 0]
+	file_label_arr = file_name_label_arr[:, 1]
+	print(file_name_arr)
+	pool = Pool(pool_size)
+	MAX_LEN = max_len
+	seqs = pool.map(preprocess2, file_name_arr)
+	pool.close()
+	# pool.terminate()
+	seqs = np.squeeze(np.array(seqs), 1) # squeeze把没用的维度去掉
+	return seqs, file_label_arr
 
 def predict_benign_mal(model, file_path, max_len=2**20):
 	seq = read_file_to_bytes_arr(file_path, max_len)

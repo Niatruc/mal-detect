@@ -1,12 +1,12 @@
-import os, sys, imp, keras, pandas as pd
+import os, pandas as pd
 from keras.models import load_model
-import tensorflow as tf
 import numpy as np
 import argparse
 
-import file_util, gen_adversarial, utils
+import utils
+from evasion_attack import gen_adversarial
 import lightgbm as lgb
-import functools, ember
+import ember
 from multiprocessing import Pool
 
 # os.sys.path.append("/home/bohan/res/ml_models/zbh/")
@@ -80,11 +80,16 @@ if __name__ == '__main__' and not TEST:
         attack_result.to_csv(args.save_path)
 
 extractor = ember.PEFeatureExtractor()
+
+
 # 这个函数定义必须放在模块的顶层,不能在函数内定义
 def calc_feature(adv):
     features = np.array(extractor.feature_vector(adv[1].astype(np.byte).tostring()), dtype=np.float32)
     return adv[0], features
-pool = Pool(10) # 这个初始化必须放calc_feature后妈,不然会报找不到某attribute的错
+
+
+pool = Pool(10) # 这个初始化必须放calc_feature后面,不然会报找不到某attribute的错
+
 if TEST:
     utils.limit_gpu_memory(0)
 
@@ -106,7 +111,7 @@ if TEST:
             adv_feature_ary = pool.map(calc_feature, adv_ary_)
             # a = [pool.apply_async(calc_feature, args=(adv,)) for adv in adv_ary]
             # adv_feature_ary = [p.get() for p in a]
-            print(np.array(adv_feature_ary)[:, 0])
+            print(np.array(adv_feature_ary)[:, 0]) # 这句是我为了证明pool生成数据是按顺序来的
             adv_feature_ary = np.array([adv_[1] for adv_ in adv_feature_ary])
             res = model.predict(adv_feature_ary)
             return res

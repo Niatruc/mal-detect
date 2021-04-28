@@ -1,12 +1,8 @@
 import os
-import argparse
 import numpy as np
-import pandas as pd
-import tensorflow as tf
-from keras.models import load_model
-from keras import backend as K, losses
-from sklearn.neighbors import NearestNeighbors
-import utils, de_old, de, gwo, fgsm2, evade_at_test_time, exe_util
+from keras import backend as K
+from utils import exe_util
+from evasion_attack import de, fgsm2, evade_at_test_time, gwo
 from file_util import preprocess
 import functools
 

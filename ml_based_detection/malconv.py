@@ -7,7 +7,7 @@ import numpy as np
 
 class TorchModel(nn.Module):
     def __init__(self, input_length=2000000, window_size=500):
-        super(MalDect, self).__init__()
+        super(TorchModel, self).__init__()
 
         # self.embed = nn.Embedding(257, 8, padding_idx=0)
         self.f2v = nn.Linear(1, 2)

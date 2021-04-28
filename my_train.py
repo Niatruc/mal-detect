@@ -1,16 +1,11 @@
-import sys
 base_dir = "/home/bohan/res/ml_models/zbh/"
-from mal_detect import mal1, mal2, deepmalnet
+from ml_based_detection import deepmalnet
 # mal_detect.mal1
 
-from sklearn import datasets
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-import torch.utils.data as Data
-from torch.utils.data import Dataset, TensorDataset, DataLoader
+from torch.utils.data import TensorDataset, DataLoader
 from torch import optim
-from torch.autograd import Variable
 import numpy as np
 import time
 
