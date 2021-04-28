@@ -169,15 +169,10 @@ def preprocess2(file_name):
 	return preprocess([file_name], MAX_LEN)[0]
 
 # 一次性生成所有样本数据
-# 注意在ipython或notebook中,第二次使用pool.map会卡住,会需要重启kernel. 
-def get_all_data(mal_file_name_label_arr, benign_file_name_label_arr, max_len=2**20, balanced=True, pool_size=4):
-	# 是否需要两个类的样本数量一致
-	if balanced:
-		cnt = min(len(mal_file_name_label_arr), len(benign_file_name_label_arr))
-		mal_file_name_label_arr = mal_file_name_label_arr[0:cnt]
-		benign_file_name_label_arr = benign_file_name_label_arr[0:cnt]
-
-	file_name_label_arr = np.array(mal_file_name_label_arr + benign_file_name_label_arr)
+# 注意在ipython或notebook中,第二次使用pool.map可能会卡住,会需要重启kernel. 
+def get_all_data(file_name_label_arr, max_len=2**20, pool_size=4):
+	# file_name_label_arr = np.array(mal_file_name_label_arr + benign_file_name_label_arr)
+	file_name_label_arr = np.array(file_name_label_arr)
 	file_name_arr = file_name_label_arr[:, 0]
 	file_label_arr = file_name_label_arr[:, 1]
 	print(file_name_arr)
@@ -187,7 +182,7 @@ def get_all_data(mal_file_name_label_arr, benign_file_name_label_arr, max_len=2*
 	pool.close()
 	# pool.terminate()
 	seqs = np.squeeze(np.array(seqs), 1) # squeeze把没用的维度去掉
-	return seqs, file_label_arr
+	return seqs, file_label_arr.astype(int)
 
 def predict_benign_mal(model, file_path, max_len=2**20):
 	seq = read_file_to_bytes_arr(file_path, max_len)
