@@ -10,7 +10,7 @@ class SklearnModel():
     def __init__(self, model_path):
         self.model = joblib.load(model_path)
 
-    def predict(self, x):
+    def predict(self, x, batch_size=None):
         try:
             y = self.model.predict_proba(x)
             y = y[:, 1]

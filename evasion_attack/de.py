@@ -170,7 +170,7 @@ class DE:
                     print("总收敛的维度数量为: ", len(convergent_dims))
 
                     check_dim_convergence_beyond_tolerance = False
-                    self.convergent_dim_cnt_ary[has_check_convergence_cnt % self.check_dim_convergence_tolerant_cnt] = len(convergent_dims)
+                    self.convergent_dim_cnt_ary[((has_check_convergence_cnt+1)//self.check_convergence_per_iter) % self.check_dim_convergence_tolerant_cnt] = len(convergent_dims)
                     if len(np.unique(self.convergent_dim_cnt_ary)) <= 1:
                         print("连续%d次无新的维度收敛" % self.check_dim_convergence_tolerant_cnt)
                         self.convergent_dim_cnt_ary = np.zeros((self.check_dim_convergence_tolerant_cnt,)) - 1

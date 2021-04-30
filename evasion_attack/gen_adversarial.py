@@ -1,9 +1,10 @@
 import os
 import numpy as np
 from keras import backend as K
+import utils
 from utils import exe_util
 from evasion_attack import de, fgsm2, evade_at_test_time, gwo
-from file_util import preprocess
+from utils.file_util import preprocess
 import functools
 
 
@@ -13,8 +14,10 @@ def gen_adv_samples(
         strategy=0, changed_bytes_cnt=16, thres=0.5, batch_size=10, workers=1,
         *, step_size=0.1, max_iter=1000,
         de_F=0.2, individual_cnt=10,
-        change_range=0b1111, use_kick_mutation=True, kick_units_rate=1., check_convergence_per_iter=100, sub_strategy=0,
-        save_units=False,save_units_path="units", save_as_init_unit_when_below_thres=False, save_units_with_lower_itersum=100, init_units=None, init_units_upper_amount=15, used_init_units_cnt=5,use_increasing_units=False,
+        change_range=0b1111, use_kick_mutation=True, kick_units_rate=1.,
+        check_convergence_per_iter=100, sub_strategy=0, check_dim_convergence_tolerate_cnt = 3,
+        save_units=False,save_units_path="units", save_as_init_unit_when_below_thres=False, save_units_with_lower_itersum=100,
+        init_units=None, init_units_upper_amount=15, used_init_units_cnt=5,use_increasing_units=False,
 
 ):
     # max_len = int(model.input.shape[1])  # 模型接受的输入数据的长度
@@ -101,11 +104,10 @@ def gen_adv_samples(
         changed_bytes_cnt = len(modifiable_bytes_pos_ary) # 可改的长度可能不够,所以需要调整
         print("可修改的字节数为: %d" % changed_bytes_cnt)
 
-        if strategy == 0 or strategy == 1:
+        if strategy == 0 or strategy == 1: # 采用基于梯度的白盒攻击方法
             if len(modifiable_range_list) > 0:
                 inp_emb = np.squeeze(np.array(inp2emb([inp, False])), 0)
 
-                # if thres < org_score:
                 if strategy == 0:
                     adv, iter_sum = fgsm2.fgsm(model, inp, embs, modifiable_range_list, step_size, max_iter, thres)
                 elif strategy == 1:
@@ -144,7 +146,7 @@ def gen_adv_samples(
                     inp, predict_func, individual_dim_cnt=individual_dim_cnt, individual_cnt=individual_cnt,
                     bounds=individual_dim_bounds, F=de_F, kick_units_rate=kick_units_rate,
                     check_convergence_per_iter=check_convergence_per_iter,
-                    check_dim_convergence_tolerate_cnt=3,
+                    check_dim_convergence_tolerate_cnt=check_dim_convergence_tolerate_cnt,
                     apply_individual_to_adv_func=diff_adv,
                     init_units=init_units_1, used_init_units_cnt=used_init_units_cnt,
                 )
