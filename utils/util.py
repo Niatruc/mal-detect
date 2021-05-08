@@ -1,5 +1,6 @@
 import numpy as np
 import math
+import sys
 import pandas as pd
 import tensorflow as tf
 import keras
@@ -13,6 +14,26 @@ def limit_gpu_memory(per):
         config.gpu_options.per_process_gpu_memory_fraction = per
     set_session(tf.Session(config=config))
 
+# 列出各变量所占内存
+def mem_info(measure='b'):
+    gs = globals()
+    vs_size = {}
+    for k in gs.keys():
+        vs_size[k] = sys.getsizeof(gs.get(k))
+    sorted_vs = sorted(vs_size, key=lambda x: vs_size[x], reverse=True)
+
+    measures_info = {
+        'b': 1,
+        'kb': 2**10,
+        'mb': 2**20,
+        'gb': 2**30,
+    }
+
+    sorted_vs_size = []
+    for sv in sorted_vs:
+        sorted_vs_size.append((sv, vs_size[sv]/measures_info[measure]))
+
+    return sorted_vs_size
 
 class Logger():
     def __init__(self):
