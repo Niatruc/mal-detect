@@ -144,7 +144,7 @@ def data_generator_2(mal_file_name_label_arr, benign_file_name_label_arr, batch_
 	data_generator_3(file_name_label_arr, batch_size, max_len, shuffle)
 
 # 使用包含(文件路径,标签)元组的列表来生成数据
-def data_generator_3(file_name_label_arr, batch_size=64, max_len=2**20, shuffle=True):
+def data_generator_3(file_name_label_arr, input_shape, data_type=float, batch_size=64, max_len=2**20, shuffle=True):
 	file_name_label_arr = np.array(file_name_label_arr)
 
 	idx = np.arange(len(file_name_label_arr))
@@ -161,6 +161,7 @@ def data_generator_3(file_name_label_arr, batch_size=64, max_len=2**20, shuffle=
 		fn_list = [fn for fn, _ in batch]
 		labels = [int(label) for _, label in batch]
 		seqs = preprocess(fn_list, max_len)[0]
+		seqs = seqs.reshape(len(seqs), *input_shape).astype(data_type)
 		yield seqs, np.array(labels)
 
 # 给下面的get_all_data用

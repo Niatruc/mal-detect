@@ -166,29 +166,29 @@ if TEST:
         org_scores.append(row.predict_score)
 
     # file_names = ['VirusShare_3c8c59d25ecb9bd91e7b933113578e40', 'VirusShare_46bef7b95fb19e0ce5542332d9ebfe48',]
-    for i, file_name in enumerate(file_names[160:]):
+    for i, file_name in enumerate(file_names[242:]):
         print("原始预测分数: ", org_scores[i])
         adv_samples, test_info = gen_adversarial.gen_adv_samples(
             model, [virusshare_dir + file_name], predict_func,
             strategy=2,
             sub_strategy=0,
             workers=1,
-            changed_bytes_cnt=256,
+            changed_bytes_cnt=1024,
             max_iter=2000,
             thres=0.5,
 
             de_F=1.,
             individual_cnt=10,
             batch_size=32,
-            change_range=0b0111,
+            change_range=0b1111,
             use_kick_mutation=True,
             kick_units_rate=1.,
             check_convergence_per_iter=100,
             check_dim_convergence_tolerate_cnt=3,
 
             save_units=True,
-            save_units_path="file_units_20210430",
-            save_as_init_unit_when_below_thres=False,
+            save_units_path="file_units_20210504",
+            save_as_init_unit_when_below_thres=True,
             save_units_with_lower_itersum=1, # 保存的unit对应的迭代数至少要多少(保存到**_withIterSum.npy文件中)
             init_units=None,
             init_units_upper_amount=15,
