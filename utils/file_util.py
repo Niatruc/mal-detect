@@ -161,7 +161,7 @@ def data_generator_3(file_name_label_arr, input_shape, data_type=float, batch_si
 		fn_list = [fn for fn, _ in batch]
 		labels = [int(label) for _, label in batch]
 		seqs = preprocess(fn_list, max_len)[0]
-		seqs = seqs.reshape(len(seqs), *input_shape).astype(data_type)
+		seqs = seqs.reshape((len(seqs), *input_shape)).astype(data_type)
 		yield seqs, np.array(labels)
 
 # 给下面的get_all_data用

@@ -64,12 +64,12 @@ def predict_test_3(model, exe_samples_path, batch_size=64, max_len=2 ** 20, grou
     return test_result
 
 
-def predict_test_4(model, test_file_name_label_arr, batch_size=64, max_len=2 ** 20, result_path="test_result.csv",
+def predict_test_4(model, test_file_name_label_arr, data_type=int, batch_size=64, max_len=2 ** 20, result_path="test_result.csv",
                    workers=1, use_multiprocessing=False):
     '''同上，为多线程，不过这里用的是样本集的 (文件路径，标签) 对，所以可同时测试正负两类样本
     '''
     p = model.predict_generator(
-        generator=file_util.data_generator_3(test_file_name_label_arr, batch_size, max_len, shuffle=False),
+        generator=file_util.data_generator_3(test_file_name_label_arr, (max_len, ), data_type, batch_size, max_len, shuffle=False),
         steps=len(test_file_name_label_arr) // batch_size + 1,
         verbose=1,
         workers=workers,
@@ -100,12 +100,12 @@ def train_model(model, epochs, train_file_name_label_arr, test_file_name_label_a
     )
 
     history = model.fit_generator(
-        file_util.data_generator_3(train_file_name_label_arr, batch_size, max_len),
+        file_util.data_generator_3(train_file_name_label_arr, (max_len, ), batch_size, max_len),
         steps_per_epoch=len(train_file_name_label_arr) // batch_size + 1,
         epochs=epochs,
         verbose=1,
         callbacks=[ear, mcp],
-        validation_data=file_util.data_generator_3(test_file_name_label_arr, batch_size, max_len),
+        validation_data=file_util.data_generator_3(test_file_name_label_arr, (max_len, ), batch_size, max_len),
         validation_steps=len(test_file_name_label_arr) // batch_size + 1
     )
     return history
