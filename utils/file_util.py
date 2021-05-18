@@ -1,4 +1,5 @@
 import os, math
+import random
 from multiprocessing import Pool
 import numpy as np
 from sklearn import metrics
@@ -32,6 +33,9 @@ def preprocess(fn_list, max_len):
 	seq = pad_sequences(corpus, maxlen=max_len, padding='post', truncating='post')
 	return seq, len_list
 
+# 给下面的get_all_data用
+def preprocess2(file_name):
+	return preprocess([file_name], MAX_LEN)[0]
 
 def read_file_to_bytes_arr(file_path, max_len):
 	'''
@@ -156,17 +160,19 @@ def data_generator_3(file_name_label_arr, input_shape, data_type=float, batch_si
 		for i in range(len(file_name_label_arr) // batch_size + 1)
 	]
 
-	# while True:
-	for batch in batches:
-		fn_list = [fn for fn, _ in batch]
-		labels = [int(label) for _, label in batch]
-		seqs = preprocess(fn_list, max_len)[0]
-		seqs = seqs.reshape((len(seqs), *input_shape)).astype(data_type)
-		yield seqs, np.array(labels)
-
-# 给下面的get_all_data用
-def preprocess2(file_name):
-	return preprocess([file_name], MAX_LEN)[0]
+	while True:
+		if len(batches[-1]) < batch_size and len(batches) > 2:
+			i = random.randint(0, len(batches)-2)
+			b_1 = batches[-1].tolist()
+			b_1.extend(batches[i].tolist()) 
+			b_1 = b_1[0:batch_size]
+			batches[-1] = np.array(b_1)
+		for batch in batches:
+			fn_list = [fn for fn, _ in batch]
+			labels = [int(label) for _, label in batch]
+			seqs = preprocess(fn_list, max_len)[0]
+			seqs = seqs.reshape((len(seqs), *input_shape)).astype(data_type)
+			yield seqs, np.array(labels)
 
 # 一次性生成所有样本数据(可多进程)
 # 注意在ipython或notebook中,第二次使用pool.map可能会卡住,会需要重启kernel. 
