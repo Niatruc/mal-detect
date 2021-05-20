@@ -14,6 +14,7 @@ from keras.preprocessing.sequence import pad_sequences
 # keras.backend.tensorflow_backend.set_session(tf.Session(config=config))
 
 MAX_LEN = 2 ** 20
+MAX_LEN_PREPROC = MAX_LEN
 
 # 从Malconv的相关代码拷贝来的.
 def preprocess(fn_list, max_len):
@@ -34,8 +35,8 @@ def preprocess(fn_list, max_len):
 	return seq, len_list
 
 # 给下面的get_all_data用
-def preprocess2(file_name):
-	return preprocess([file_name], MAX_LEN)[0]
+def preprocess2(file_name_maxLen):
+	return preprocess([file_name_maxLen[0]], file_name_maxLen[1])[0]
 
 def read_file_to_bytes_arr(file_path, max_len):
 	'''
@@ -181,21 +182,22 @@ def get_all_data(file_name_label_arr, max_len=2**20, pool_size=4):
 	file_name_label_arr = np.array(file_name_label_arr)
 	file_name_arr = file_name_label_arr[:, 0]
 	file_label_arr = file_name_label_arr[:, 1]
-	print(file_name_arr)
+	
+	file_name_maxLen_arr = [(file_name, max_len) for file_name in file_name_arr]
+	
 	pool = Pool(pool_size)
-	MAX_LEN = max_len
-	seqs = pool.map(preprocess2, file_name_arr)
+	seqs = pool.map(preprocess2, file_name_maxLen_arr)
 	pool.close()
 	# pool.terminate()
 	seqs = np.squeeze(np.array(seqs), 1) # squeeze把没用的维度去掉
 	return seqs, file_label_arr.astype(int)
 
 # 如果没有使用多进程的权限而不能用get_all_data, 又想一次性获取所有数据, 则用下列方法
-def get_X_Y(file_name_label_arr, batch_size=128):
+def get_X_Y(file_name_label_arr, max_len=MAX_LEN, batch_size=128):
     X = np.array([])
     X = X.reshape(-1,2**20)
     Y = np.array([])
-    for seqs, labels in file_util.data_generator_3(file_name_label_arr, batch_size=batch_size):
+    for seqs, labels in data_generator_3(file_name_label_arr, input_shape=(max_len, ), batch_size=batch_size):
         X = np.concatenate((X, seqs))
         Y = np.concatenate((Y, labels))
         print(len(Y))

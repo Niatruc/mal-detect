@@ -107,3 +107,5 @@ def get_modifiable_range_list(fn, change_range, changed_bytes_cnt):
 
     return  modifiable_range_list
 
+def get_pe_info(fn_list):
+    pass
