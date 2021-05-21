@@ -7,10 +7,16 @@ class SklearnModel():
     """
     docstring
     """
-    def __init__(self, model_path):
+    def __init__(self, model_path, max_len=2**20, input_shape=None):
         self.model = joblib.load(model_path)
+        self.max_len = max_len
+        self.input_shape = input_shape
+        if input_shape is None:
+            self.input_shape = (max_len, )
 
     def predict(self, x, batch_size=None):
+        x = x[:, :self.max_len]
+        x = x.reshape(len(x), *self.input_shape)
         try:
             y = self.model.predict_proba(x)
             y = y[:, 1]

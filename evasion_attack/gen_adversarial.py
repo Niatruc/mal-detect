@@ -31,20 +31,6 @@ def gen_adv_samples(
     adv_samples = []
     test_info = {}
 
-    # if workers <= 1:
-    #     predict_func = functools.partial(model.predict, batch_size=batch_size)
-    # else:   # 使用多线程(发现无法提速)
-    #     def predict_func(binaries_list):
-    #         # res1 = model.predict(binaries_list, batch_size=batch_size)
-    #         batch_cnt = np.ceil(len(binaries_list) // batch_size)
-    #         res = model.predict_generator(
-    #             generator=utils.ExeContentSequence(binaries_list, [1] * len(binaries_list), batch_size),
-    #             steps=batch_cnt,
-    #             verbose=1,
-    #             workers=workers,
-    #             use_multiprocessing=True,
-    #         )
-    #         return res
     if predict_func is None:
         predict_func = functools.partial(model.predict, batch_size=batch_size)
 
@@ -81,7 +67,8 @@ def gen_adv_samples(
         print("文件: " + fn)
         inp, len_list = preprocess([fn], max_len)
         pad_idx = len_list[0]   # 以文件的长度作为填充字节的起始下标
-        # org_score = model.predict(inp)[0][0]    # 模型对未添加噪声的文件的预测概率(1表示恶意)
+        org_score = model.predict(inp)[0]    # 模型对未添加噪声的文件的预测概率(1表示恶意)
+        print("原始预测分数: ", org_score)
         # loss, pred = float('nan'), float('nan')
 
         pad_len = max(min(changed_bytes_cnt, max_len - pad_idx), 0)

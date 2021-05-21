@@ -5,6 +5,7 @@ import argparse
 
 import utils
 from utils import util, sklearn_util
+from ml_based_detection import mal_detect_base_model
 from evasion_attack import gen_adversarial
 import lightgbm as lgb
 import ember
@@ -85,17 +86,36 @@ def calc_feature(adv):
 
 pool = Pool(10) # 这个初始化必须放calc_feature后面,不然会报找不到某attribute的错
 
+TEST_KERAS_MODEL = False
+TEST_KERAS_MODEL = True
 
-TEST_LIGHTGBM= True
-TEST_LIGHTGBM= False
+TEST_LIGHTGBM = True
+TEST_LIGHTGBM = False
 
-TEST_DEEPMALNET= True
-TEST_DEEPMALNET= False
+TEST_DEEPMALNET = True
+TEST_DEEPMALNET = False
 
 TEST_SKLEARN_MODEL = True
+TEST_SKLEARN_MODEL = False
+
+max_len = 2**10
+input_shape = (max_len, ) # (32, 32, 1)
+
+models_path = "/home/bohan/res/ml_models/zbh/model_files/"
+# 'mlw_classification_cnn_img_1024.18-0.93.hdf5'
+# 'GBDT2021042701_acc_0_9133.model'
+# model_file_name = 'SVC2021052101_acc_0_9508.model'
+model_file_name = 'mlw_classification_one_bilstm.07-0.97.hdf5'
+
+# './de_attack_result_256_bytes_mlw_cnn_img_2021051901.csv'
+# stubborn_attack_result_path = './de_attack_result_256_bytes_SVC2021052101.csv'
+stubborn_attack_result_path = './de_attack_result_256_bytes_mlw_classification_one_bilstm.csv'
+
+save_units_path = "file_units_mlw_classification_one_bilstm"
 
 if TEST:
     utils.util.limit_gpu_memory(0)
+    records = pd.read_csv('/home/bohan/res/ml_models/zbh/test_result/model_test/virusshare_1000.csv', index_col=False)
 
     predict_func = None
     if TEST_LIGHTGBM or TEST_DEEPMALNET:
@@ -121,38 +141,18 @@ if TEST:
             return res
 
     elif TEST_SKLEARN_MODEL:
-        r = "/home/bohan/res/ml_models/zbh/"
         # model = load_model(r + "/model_files/GBDT2021042701_acc_0_9133.model")
-        model = sklearn_util.SklearnModel(r + "/model_files/GBDT2021042701_acc_0_9133.model")
-        records = pd.read_csv(r + '/test_result/model_test/GBDT2021042701_acc_0_9133_virusshare_test_result_1000.csv', index_col=False)
-
+        model = sklearn_util.SklearnModel(models_path + model_file_name, max_len=max_len)
+        records = pd.read_csv('/home/bohan/res/ml_models/zbh/test_result/model_test/virusshare_1000.csv', index_col=False)
+    elif TEST_KERAS_MODEL:
+        model = mal_detect_base_model.KerasModel(path=models_path + model_file_name, max_len=max_len, input_shape=input_shape)
     else:
         model = load_model("../../ember/malconv/malconv.h5")
         # records = pd.read_csv('../model_test_result/de_attack_result_256_bytes_from_first_stubborn.csv', index_col=0)
         # records = pd.read_csv('../model_test_result/virusshare_1000.csv', index_col=0)
 
-    successful_file_paths = [
-        'VirusShare_3c8c59d25ecb9bd91e7b933113578e40',
-        'VirusShare_3a4fac1796f0816d7567abb9bf0a9440',
-        'VirusShare_01cd58ba6e5f9d1e1f718dfba7478d30',
-        'VirusShare_40fd3647c44239df91fc5d7765dd0d9f',
-        'VirusShare_22fd8d088ef3ccadc6baa44dc8cb7490',
-    ]
-
-    stubborn_files = [
-        'VirusShare_1e4997bc0fced91b25632c3151f91710',
-        'VirusShare_01dd838da5efd739579f412e4f56b180',
-        'VirusShare_21d3b6c1cd1873add493e0675fbd8220',
-        'VirusShare_13351c7d2aa385a6b0e2b08f676f8250',
-        'VirusShare_46bef7b95fb19e0ce5542332d9ebfe48',
-        'VirusShare_327ab01f70084d5fc63bc5669e235740',
-        'VirusShare_06f1c1bc8ad03a43633807618a8e3158',
-    ]
-    # 4401, 4818, 46036, 4387, 50000(x), 4047
-
     init_units3 = np.load("/home/bohan/res/ml_models/zbh/mal_detect/tmp/stubborn_units_more_powerful.npy")
 
-    stubborn_attack_result_path = './de_attack_result_256_bytes_gbdt_2021043001.csv'
     try:
         stubborn_attack_result = pd.read_csv(stubborn_attack_result_path, index_col=0)
     except Exception:
@@ -167,13 +167,13 @@ if TEST:
 
     # file_names = ['VirusShare_3c8c59d25ecb9bd91e7b933113578e40', 'VirusShare_46bef7b95fb19e0ce5542332d9ebfe48',]
     for i, file_name in enumerate(file_names[242:]):
-        print("原始预测分数: ", org_scores[i])
+        # print("原始预测分数: ", org_scores[i])
         adv_samples, test_info = gen_adversarial.gen_adv_samples(
             model, [virusshare_dir + file_name], predict_func,
             strategy=2,
             sub_strategy=0,
             workers=1,
-            changed_bytes_cnt=1024,
+            changed_bytes_cnt=256,
             max_iter=2000,
             thres=0.5,
 
@@ -187,9 +187,9 @@ if TEST:
             check_dim_convergence_tolerate_cnt=3,
 
             save_units=True,
-            save_units_path="file_units_20210504",
+            save_units_path=save_units_path,
             save_as_init_unit_when_below_thres=True,
-            save_units_with_lower_itersum=1, # 保存的unit对应的迭代数至少要多少(保存到**_withIterSum.npy文件中)
+            save_units_with_lower_itersum=10, # 保存的unit对应的迭代数至少要多少(保存到**_withIterSum.npy文件中)
             init_units=None,
             init_units_upper_amount=15,
             used_init_units_cnt=4,

@@ -4,7 +4,7 @@ from keras.layers import Dense, Embedding, Conv1D, multiply, GlobalMaxPool1D, In
 from utils import file_util
 
 class KerasModel():
-    def __init__(self, input_shape=None, path=None, max_len=2**20):
+    def __init__(self, path=None, max_len=2**20, input_shape=None):
         self.max_len = max_len
         if path is not None:
             self.model = load_model(path)
