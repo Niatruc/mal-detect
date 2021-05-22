@@ -67,7 +67,7 @@ def gen_adv_samples(
         print("文件: " + fn)
         inp, len_list = preprocess([fn], max_len)
         pad_idx = len_list[0]   # 以文件的长度作为填充字节的起始下标
-        org_score = model.predict(inp)[0]    # 模型对未添加噪声的文件的预测概率(1表示恶意)
+        org_score = predict_func(inp)[0]    # 模型对未添加噪声的文件的预测概率(1表示恶意)
         test_info['org_score'] = org_score
         print("原始预测分数: ", org_score)
         # loss, pred = float('nan'), float('nan')

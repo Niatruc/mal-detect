@@ -8,20 +8,28 @@ class KerasModel(mal_detect_base_model.KerasModel):
         super().__init__()
         
         if not hasattr(self, 'model'):
-            inp = Input((max_len,))
-            emb = Embedding(vocab_size, 8)(inp)
-
-            conv1 = Conv1D(kernel_size=(win_size), filters=128, strides=(win_size), padding='same')(emb)
-            conv2 = Conv1D(kernel_size=(win_size), filters=128, strides=(win_size), padding='same')(emb)
-            a = Activation('sigmoid', name='sigmoid')(conv2)
-            
-            mul = multiply([conv1, a])
-            a = Activation('relu', name='relu')(mul)
-            p = GlobalMaxPool1D()(a)
-            d = Dense(64)(p)
-            out = Dense(1, activation='sigmoid')(d)
-
-            self.model = Model(inp, out)
+            model = Sequential([
+                Convolution2D(
+                    filters=50, kernel_size=5, border_mode='valid', activation='relu',
+                    batch_input_shape= (batch_size, *input_shape),
+                    data_format='channels_last'
+                ), # channel_last表示通道数放在input_shape的最后; border_mode其实可不用填,默认是valid, 也就是输出的长宽会小一点
+                MaxPooling2D(pool_size=(2, 2), strides=1, border_mode='valid'),
+            #     BatchNormalization(),
+            # # ])
+            # # ([  
+                Convolution2D(filters=70, kernel_size=3, activation='relu'),
+                MaxPooling2D(pool_size=(2, 2), strides=1),
+                BatchNormalization(),
+                
+                Convolution2D(filters=70, kernel_size=3, activation='relu'),
+                MaxPooling2D(pool_size=(2, 2), strides=1),
+                BatchNormalization(),
+                
+                Flatten(),
+                Dense(units=256, activation='relu'),
+                Dense(units=1, activation='sigmoid'),
+            ])
         # model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['acc'])
 
         
