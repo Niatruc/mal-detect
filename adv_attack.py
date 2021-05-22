@@ -86,8 +86,6 @@ def calc_feature(adv):
 
 pool = Pool(10) # 这个初始化必须放calc_feature后面,不然会报找不到某attribute的错
 
-TEST_KERAS_MODEL = False
-TEST_KERAS_MODEL = True
 
 TEST_LIGHTGBM = True
 TEST_LIGHTGBM = False
@@ -95,8 +93,11 @@ TEST_LIGHTGBM = False
 TEST_DEEPMALNET = True
 TEST_DEEPMALNET = False
 
-TEST_SKLEARN_MODEL = True
+TEST_KERAS_MODEL = True
+TEST_KERAS_MODEL = False
+
 TEST_SKLEARN_MODEL = False
+TEST_SKLEARN_MODEL = True
 
 max_len = 2**10
 input_shape = (max_len, ) # (32, 32, 1)
@@ -104,14 +105,15 @@ input_shape = (max_len, ) # (32, 32, 1)
 models_path = "/home/bohan/res/ml_models/zbh/model_files/"
 # 'mlw_classification_cnn_img_1024.18-0.93.hdf5'
 # 'GBDT2021042701_acc_0_9133.model'
-# model_file_name = 'SVC2021052101_acc_0_9508.model'
-model_file_name = 'mlw_classification_one_bilstm.07-0.97.hdf5'
+model_file_name = 'DT2021052201_acc_0_8892.model'
+# model_file_name = 'mlw_classification_one_bilstm.07-0.97.hdf5'
 
 # './de_attack_result_256_bytes_mlw_cnn_img_2021051901.csv'
-# stubborn_attack_result_path = './de_attack_result_256_bytes_SVC2021052101.csv'
-stubborn_attack_result_path = './de_attack_result_256_bytes_mlw_classification_one_bilstm.csv'
+stubborn_attack_result_path = './de_attack_result_256_bytes_DT2021052201.csv'
+# stubborn_attack_result_path = './de_attack_result_256_bytes_mlw_classification_one_bilstm.csv'
 
-save_units_path = "file_units_mlw_classification_one_bilstm"
+# save_units_path = "file_units_mlw_classification_one_bilstm"
+save_units_path = "file_units_DT2021052201"
 
 if TEST:
     utils.util.limit_gpu_memory(0)
@@ -142,7 +144,7 @@ if TEST:
 
     elif TEST_SKLEARN_MODEL:
         # model = load_model(r + "/model_files/GBDT2021042701_acc_0_9133.model")
-        model = sklearn_util.SklearnModel(models_path + model_file_name, max_len=max_len)
+        model = sklearn_util.SklearnModel(models_path + model_file_name, max_len=max_len, scaler_path=models_path + "standard_scaler_4000_software.model")
         records = pd.read_csv('/home/bohan/res/ml_models/zbh/test_result/model_test/virusshare_1000.csv', index_col=False)
     elif TEST_KERAS_MODEL:
         model = mal_detect_base_model.KerasModel(path=models_path + model_file_name, max_len=max_len, input_shape=input_shape)

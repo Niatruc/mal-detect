@@ -1,7 +1,7 @@
 from keras.models import load_model
 from keras.models import Model
 from keras.layers import Dense, Embedding, Conv1D, multiply, GlobalMaxPool1D, Input, Activation
-from utils import file_util
+from mal_detect.utils import file_util
 
 class KerasModel():
     def __init__(self, path=None, max_len=2**20, input_shape=None):

@@ -2,21 +2,30 @@ import sklearn
 import joblib
 import numpy as np
 from multiprocessing import Pool
+import joblib
 
 class SklearnModel():
     """
     docstring
     """
-    def __init__(self, model_path, max_len=2**20, input_shape=None):
+    def __init__(self, model_path, max_len=2**20, input_shape=None, scaler_path=None):
         self.model = joblib.load(model_path)
         self.max_len = max_len
         self.input_shape = input_shape
         if input_shape is None:
             self.input_shape = (max_len, )
 
+        self.scaler = None
+        if scaler_path is not None:
+            self.scaler = joblib.load(scaler_path)
+
     def predict(self, x, batch_size=None):
         x = x[:, :self.max_len]
         x = x.reshape(len(x), *self.input_shape)
+
+        if self.scaler is not None:
+            x = self.scaler.transform(x)
+
         try:
             y = self.model.predict_proba(x)
             y = y[:, 1]
