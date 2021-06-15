@@ -7,7 +7,7 @@ def find_pe_modifiable_range(exe_file_path, max_len = 2**20, use_range=0b1111):
     exe_info = lief.parse(exe_file_path)
 
     if not exe_info:
-        print("该文件可能为打包的文件")
+        print("该文件可能为打包的文件") # VirusShare_118d28579e00304d72af93727137d584
         modifiable_range_selection = find_packed_pe_modifiable_range(exe_file_path, max_len)
     else:
         dos_header_modifiable_range1 = (2, 0x40 - 4)
@@ -105,18 +105,6 @@ def find_packed_pe_modifiable_range(exe_file_path, max_len = 2**20, use_range=0b
     dos_header_modifiable_range = (2, 0x40)
     pe_header_modifiable_range = (0x40, 0x40 + 4 + 20 + 0xe0) # 使用32位PE头大小, 确保不会改动打包部分
     return [[dos_header_modifiable_range], [pe_header_modifiable_range]]
-
-def find_pe_sec_modifiable_range(exe_file_path, max_len = 2**20, use_range=0b1111):
-    exe_info = lief.parse(exe_file_path)
-
-    # 各区块因补齐而产生的剩余可改空间
-    pe_modifiable_sections_range_list = []
-    for sec in exe_info.sections:
-        if sec.size <= sec.virtual_size:
-            continue
-        if sec.offset + sec.virtual_size >= max_len:
-            break
-        pe_modifiable_sections_range_list.append((sec.offset + sec.virtual_size, min(sec.offset + sec.size, max_len)))
 
 def get_modifiable_range_list(fn, changed_range, changed_bytes_cnt):
     modifiable_range_list = []
@@ -284,10 +272,15 @@ def get_modifiable_range_in_section_table(fn, new_sections_cnt=0x10, write_path=
     return mrl
 
 def find_pe_modifiable_range_ember_preproc(fn, export_func_cnt=10, inserted_sec_cnt=0x8, write_path="tmp/tmp_exe.exe"):
+    exe_info = lief.parse(fn)
     mrl1 = find_pe_modifiable_range(fn, use_range=0b10) # 取PE头部可写字段的字节位置
-    mrl2 = get_modifiable_range_in_exports(fn, export_func_cnt, write_path) # 插入导出表, 取出导出函数名的字节位置
-    mrl3 = get_modifiable_range_in_section_table(write_path, inserted_sec_cnt, write_path) # 插入节, 取出节名等的字节位置
-    mrl = mrl1 + mrl2 + mrl3
+
+    if exe_info is None:
+        mrl = mrl1
+    else:
+        mrl2 = get_modifiable_range_in_exports(fn, export_func_cnt, write_path) # 插入导出表, 取出导出函数名的字节位置
+        mrl3 = get_modifiable_range_in_section_table(write_path, inserted_sec_cnt, write_path) # 插入节, 取出节名等的字节位置
+        mrl = mrl1 + mrl2 + mrl3
     bytez = open(write_path, 'rb').read()
     byte_ary = list(struct.unpack('B' * len(bytez), bytez))
     return mrl, [byte_ary]
