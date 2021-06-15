@@ -16,7 +16,7 @@ class DE:
         :param target_func: 目标优化参数
         :param individual_dim_cnt: 个体的维度数
         :param individual_cnt: DE算法中的个体数量(每个个体unit由所有要修改的字节的信息组成)
-        :param bounds: 每一个要改的字节包含两个信息:字节位置和更改后的值. bounds包含的两个数组分别是这两个值对应的取值范围,如[[(i1_a1, i1_b1), (i1_a2, i1_b2)], [(i2_a1, i2_b1)]]
+        :param bounds: 包含每个位置的字节的取值范围, 如[[(i1_a1, i1_b1), (i1_a2, i1_b2)], [(i2_a1, i2_b1)]], 则第一个字节的取值落在区间(i1_a1, i1_b1)和(i1_a2, i1_b2)中
         :param F: 变异参数,越大则越能跳出局部最优点,但收敛速度会降低
         :param CR: 交叉概率
         '''

@@ -28,7 +28,7 @@ class SklearnModel():
 
         try:
             y = self.model.predict_proba(x)
-            y = y[:, 1]
+            y = y[:, 1].reshape(y.shape[0], 1)  # 上面方法输出的是各个标签对应的置信度组成的数组, 取第二个, 即标签1对应的置信度
         except:
             y = self.model.predict(x)
         return y

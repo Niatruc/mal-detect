@@ -6,7 +6,7 @@ from utils import exe_util
 from evasion_attack import de, fgsm2, evade_at_test_time, gwo
 from utils.file_util import preprocess
 import functools
-
+import struct
 
 # 实验发现,pad_len为32时没有效果,到64时则可以
 def gen_adv_samples(
@@ -18,7 +18,7 @@ def gen_adv_samples(
         check_convergence_per_iter=100, sub_strategy=0, check_dim_convergence_tolerate_cnt = 3,
         save_units=False,save_units_path="units", save_as_init_unit_when_below_thres=False, save_units_with_lower_itersum=100,
         init_units=None, init_units_upper_amount=15, used_init_units_cnt=5,use_increasing_units=False,
-
+        pre_modify_file_func=None,
 ):
     # max_len = int(model.input.shape[1])  # 模型接受的输入数据的长度
 
@@ -70,11 +70,18 @@ def gen_adv_samples(
         org_score = predict_func(inp)[0]    # 模型对未添加噪声的文件的预测概率(1表示恶意)
         test_info['org_score'] = org_score
         print("原始预测分数: ", org_score)
-        # loss, pred = float('nan'), float('nan')
+        if org_score < thres:
+            test_info['final_score'] = org_score[0]
+            test_info['iter_sum'] = 0
+            print("最终置信度: ", org_score)
+            continue
 
-        pad_len = max(min(changed_bytes_cnt, max_len - pad_idx), 0)
         modifiable_range_list = []
-        if change_range == 0 and pad_len > 0:
+        pad_len = max(min(changed_bytes_cnt, max_len - pad_idx), 0)
+        if pre_modify_file_func is not None:
+            modifiable_range_list, inp = pre_modify_file_func(fn)
+            inp = np.array(inp, dtype=np.int32)
+        elif change_range == 0 and pad_len > 0:
             modifiable_range_list = [(pad_idx, pad_idx + pad_len)]
         else: # 从可改的第一个字节开始到第changed_bytes_cnt个字节结束
             modifiable_range_list = exe_util.get_modifiable_range_list(fn, change_range, changed_bytes_cnt)
@@ -84,7 +91,7 @@ def gen_adv_samples(
             bound_len = bound[1] - bound[0]
             # noise = np.zeros(bound_len)
             noise = np.random.randint(0, 256, bound_len)
-            inp[0][bound[0]: bound[1]] = noise
+            inp[0][bound[0]: bound[1]] = noise # struct.unpack("B"*7, b"abcdefg")
 
             for pos in range(*bound):
                 modifiable_bytes_pos_list.append(pos)
