@@ -25,8 +25,8 @@ def calc_feature(adv):
 pool = Pool(10) # 这个初始化必须放calc_feature后面,不然会报找不到某attribute的错
 
 
-TEST_LIGHTGBM = False
 TEST_LIGHTGBM = True
+TEST_LIGHTGBM = False
 
 TEST_DEEPMALNET = True
 TEST_DEEPMALNET = False
@@ -55,14 +55,15 @@ scaler_path = models_path + "standard_scaler_4000_software.model"
 # './de_attack_result_256_bytes_mlw_cnn_img_2021051901.csv'
 # attack_result_path = './de_attack_result_256_bytes_DT2021052201.csv'
 # attack_result_path = './de_attack_result_1024_bytes_ember_lightgbm.csv'
-attack_result_path = './de_attack_result_ember_lightgbm_20210615.csv'
+attack_result_path = './de_attack_result_ember_lightgbm_stubborn_3.csv'
 
 # save_units_path = "file_units_DT2021052201"
 # save_units_path = "file_units_ember_lightgbm_20210607"
 save_units_path = "file_units_ember_lightgbm_20210615"
 
 utils.util.limit_gpu_memory(0)
-records = pd.read_csv('/home/bohan/res/ml_models/zbh/test_result/model_test/virusshare_1000.csv', index_col=False)
+# records = pd.read_csv('/home/bohan/res/ml_models/zbh/test_result/model_test/virusshare_1000.csv', index_col=False)
+records = pd.read_csv('/home/bohan/res/ml_models/zbh/test_result/evasion_attack_test/de_attack_result_ember_lightgbm_stubborn.csv', index_col=False)
 
 predict_func = None
 pre_modify_file_func = None
@@ -115,13 +116,14 @@ except Exception:
 
 virusshare_dir = "/home/bohan/res/ml_dataset/virusshare/"
 file_names = []
-org_scores = []
+# org_scores = []
 for index, row in records.iterrows():
     file_names.append(row.file_name)
-    org_scores.append(row.predict_score)
+    # org_scores.append(row.predict_score)
+    # org_scores.append(row.org_score)
 
 # file_names = ['VirusShare_3c8c59d25ecb9bd91e7b933113578e40', 'VirusShare_46bef7b95fb19e0ce5542332d9ebfe48',]
-for i, file_name in enumerate(file_names[0:]):
+for i, file_name in enumerate(file_names[200:]):
     # print("原始预测分数: ", org_scores[i])
     adv_samples, test_info = gen_adversarial.gen_adv_samples(
         model, [virusshare_dir + file_name], predict_func,
@@ -129,7 +131,7 @@ for i, file_name in enumerate(file_names[0:]):
         sub_strategy=0,
         workers=1,
         changed_bytes_cnt=256,
-        max_iter=2000,
+        max_iter=5000,
         thres=0.5,
 
         de_F=1.,

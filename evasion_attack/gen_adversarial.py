@@ -1,10 +1,10 @@
 import os
 import numpy as np
 from keras import backend as K
-import utils
-from utils import exe_util
-from evasion_attack import de, fgsm2, evade_at_test_time, gwo
-from utils.file_util import preprocess
+# import utils
+from mal_detect.utils import exe_util
+from . import de, fgsm2, evade_at_test_time, gwo
+from mal_detect.utils.file_util import preprocess
 import functools
 import struct
 
